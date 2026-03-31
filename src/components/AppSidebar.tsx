@@ -1,4 +1,4 @@
-import { Wifi, LayoutDashboard, Ticket, Users, ScrollText, Zap, LogOut, Moon, Sun } from 'lucide-react';
+import { Terminal, LayoutDashboard, Ticket, Users, ScrollText, Zap, LogOut } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import { useAuth } from '@/contexts/AuthContext';
 import {
@@ -14,7 +14,6 @@ import {
   useSidebar,
 } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
-import { useState, useEffect } from 'react';
 
 const mainItems = [
   { title: 'Dashboard', url: '/', icon: LayoutDashboard },
@@ -31,21 +30,6 @@ export function AppSidebar() {
   const { state } = useSidebar();
   const collapsed = state === 'collapsed';
   const { isAdmin, profile, signOut } = useAuth();
-  const [isDark, setIsDark] = useState(() => document.documentElement.classList.contains('dark'));
-
-  useEffect(() => {
-    if (isDark) {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
-  }, [isDark]);
-
-  // Default to dark on mount
-  useEffect(() => {
-    document.documentElement.classList.add('dark');
-    setIsDark(true);
-  }, []);
 
   return (
     <Sidebar collapsible="icon">
@@ -53,8 +37,8 @@ export function AppSidebar() {
         <SidebarGroup>
           <SidebarGroupLabel>
             <div className="flex items-center gap-2">
-              <Wifi className="h-4 w-4 text-primary" />
-              {!collapsed && <span className="font-mono font-bold text-sm">NetOps</span>}
+              <Terminal className="h-4 w-4 text-primary" />
+              {!collapsed && <span className="font-mono font-bold text-sm text-glow">PJM Net</span>}
             </div>
           </SidebarGroupLabel>
           <SidebarGroupContent>
@@ -101,14 +85,9 @@ export function AppSidebar() {
           {!collapsed && profile && (
             <p className="text-xs text-muted-foreground truncate px-2">{profile.display_name}</p>
           )}
-          <div className="flex gap-1">
-            <Button variant="ghost" size="icon" onClick={() => setIsDark(!isDark)} className="h-8 w-8">
-              {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-            </Button>
-            <Button variant="ghost" size="icon" onClick={signOut} className="h-8 w-8 text-destructive">
-              <LogOut className="h-4 w-4" />
-            </Button>
-          </div>
+          <Button variant="ghost" size="icon" onClick={signOut} className="h-8 w-8 text-destructive">
+            <LogOut className="h-4 w-4" />
+          </Button>
         </div>
       </SidebarFooter>
     </Sidebar>
