@@ -573,7 +573,7 @@ export default function Infrastructure() {
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-1">
-                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openConnect(host)} title="Conectar">
+                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openSSHTerminal(host)} title="Conectar">
                         <Terminal className="h-3.5 w-3.5 text-primary" />
                       </Button>
                       <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => copySSH(host)} title="Copiar SSH">
