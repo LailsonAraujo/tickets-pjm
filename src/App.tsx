@@ -42,6 +42,7 @@ function AppRoutes() {
         <Route path="/tickets/:id" element={<TicketDetail />} />
         <Route path="/provisioning" element={<Provisioning />} />
         <Route path="/monitor" element={<Monitor />} />
+        <Route path="/infrastructure" element={<Infrastructure />} />
         <Route path="/users" element={<UsersPage />} />
         <Route path="/logs" element={<Logs />} />
         <Route path="*" element={<NotFound />} />

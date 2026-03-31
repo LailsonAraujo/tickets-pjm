@@ -19,6 +19,7 @@ const mainItems = [
   { title: 'Dashboard', url: '/', icon: LayoutDashboard },
   { title: 'Tickets', url: '/tickets', icon: Ticket },
   { title: 'Provisionamento', url: '/provisioning', icon: Zap },
+  { title: 'Infraestrutura', url: '/infrastructure', icon: Server },
 ];
 
 const adminItems = [
