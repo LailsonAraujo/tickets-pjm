@@ -97,6 +97,44 @@ export type Database = {
         }
         Relationships: []
       }
+      host_credentials: {
+        Row: {
+          created_at: string
+          encrypted_password: string | null
+          host_id: string
+          id: string
+          updated_at: string
+          user_id: string
+          username: string | null
+        }
+        Insert: {
+          created_at?: string
+          encrypted_password?: string | null
+          host_id: string
+          id?: string
+          updated_at?: string
+          user_id: string
+          username?: string | null
+        }
+        Update: {
+          created_at?: string
+          encrypted_password?: string | null
+          host_id?: string
+          id?: string
+          updated_at?: string
+          user_id?: string
+          username?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "host_credentials_host_id_fkey"
+            columns: ["host_id"]
+            isOneToOne: false
+            referencedRelation: "hosts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       host_folders: {
         Row: {
           created_at: string
@@ -125,6 +163,38 @@ export type Database = {
             columns: ["parent_id"]
             isOneToOne: false
             referencedRelation: "host_folders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      host_shares: {
+        Row: {
+          created_at: string
+          host_id: string
+          id: string
+          owner_id: string
+          shared_with: string
+        }
+        Insert: {
+          created_at?: string
+          host_id: string
+          id?: string
+          owner_id: string
+          shared_with: string
+        }
+        Update: {
+          created_at?: string
+          host_id?: string
+          id?: string
+          owner_id?: string
+          shared_with?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "host_shares_host_id_fkey"
+            columns: ["host_id"]
+            isOneToOne: false
+            referencedRelation: "hosts"
             referencedColumns: ["id"]
           },
         ]
