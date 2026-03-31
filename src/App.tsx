@@ -13,6 +13,7 @@ import Provisioning from "./pages/Provisioning";
 import UsersPage from "./pages/UsersPage";
 import Logs from "./pages/Logs";
 import Monitor from "./pages/Monitor";
+import Infrastructure from "./pages/Infrastructure";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -41,6 +42,7 @@ function AppRoutes() {
         <Route path="/tickets/:id" element={<TicketDetail />} />
         <Route path="/provisioning" element={<Provisioning />} />
         <Route path="/monitor" element={<Monitor />} />
+        <Route path="/infrastructure" element={<Infrastructure />} />
         <Route path="/users" element={<UsersPage />} />
         <Route path="/logs" element={<Logs />} />
         <Route path="*" element={<NotFound />} />
