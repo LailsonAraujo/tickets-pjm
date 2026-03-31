@@ -116,10 +116,6 @@ export default function Infrastructure() {
   const [decryptKeyOpen, setDecryptKeyOpen] = useState(false);
   const [decryptKeyTarget, setDecryptKeyTarget] = useState('');
   const [decryptKey, setDecryptKey] = useState('');
-  const [connectOpen, setConnectOpen] = useState(false);
-  const [connectHost, setConnectHost] = useState<Host | null>(null);
-  const [connectMasterKey, setConnectMasterKey] = useState('');
-  const [connectDecrypted, setConnectDecrypted] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [hostForm, setHostForm] = useState({
