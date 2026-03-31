@@ -24,7 +24,7 @@ function formatTime(seconds: number) {
 const TicketDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -59,6 +59,8 @@ const TicketDetail = () => {
     return () => { if (timerRef.current) clearInterval(timerRef.current); };
   }, [timerActive]);
 
+  const canEditTicket = isAdmin || ticket?.assigned_to === user?.id || ticket?.created_by === user?.id;
+
   const updateStatus = useMutation({
     mutationFn: async (status: Enums<'ticket_status'>) => {
       const { error } = await supabase.from('tickets').update({ status, closed_at: status === 'concluido' ? new Date().toISOString() : null }).eq('id', id!);
@@ -84,14 +86,20 @@ const TicketDetail = () => {
         time_spent_seconds: timerSeconds || newNote.time_spent_seconds,
       });
       if (error) throw error;
+
+      // Auto-transfer: if current user is not the assigned tech, transfer ticket to them
+      if (ticket && ticket.assigned_to !== user!.id) {
+        await supabase.from('tickets').update({ assigned_to: user!.id }).eq('id', id!);
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['ticket-notes', id] });
+      queryClient.invalidateQueries({ queryKey: ['ticket', id] });
       setNewNote({ description: '', what_was_done: '', rollback_plan: '', time_spent_seconds: 0 });
       setShowNoteForm(false);
       setTimerActive(false);
       setTimerSeconds(0);
-      toast({ title: 'Nota adicionada!' });
+      toast({ title: 'Nota adicionada! Ticket transferido para você.' });
     },
     onError: (err: any) => toast({ title: 'Erro', description: err.message, variant: 'destructive' }),
   });
@@ -112,16 +120,20 @@ const TicketDetail = () => {
               <p className="text-xs text-muted-foreground font-mono mt-1">#{ticket.id.slice(0, 8)} • Criado por {(ticket as any).profiles?.display_name}</p>
             </div>
             <div className="flex items-center gap-2">
-              <Select value={ticket.status} onValueChange={v => updateStatus.mutate(v as Enums<'ticket_status'>)}>
-                <SelectTrigger className="w-[160px]"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="aberto">Aberto</SelectItem>
-                  <SelectItem value="em_andamento">Em Andamento</SelectItem>
-                  <SelectItem value="aguardando">Aguardando</SelectItem>
-                  <SelectItem value="concluido">Concluído</SelectItem>
-                  <SelectItem value="cancelado">Cancelado</SelectItem>
-                </SelectContent>
-              </Select>
+              {canEditTicket ? (
+                <Select value={ticket.status} onValueChange={v => updateStatus.mutate(v as Enums<'ticket_status'>)}>
+                  <SelectTrigger className="w-[160px]"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="aberto">Aberto</SelectItem>
+                    <SelectItem value="em_andamento">Em Andamento</SelectItem>
+                    <SelectItem value="aguardando">Aguardando</SelectItem>
+                    <SelectItem value="concluido">Concluído</SelectItem>
+                    <SelectItem value="cancelado">Cancelado</SelectItem>
+                  </SelectContent>
+                </Select>
+              ) : (
+                <Badge variant="outline" className="font-mono">{ticket.status.replace('_', ' ')}</Badge>
+              )}
             </div>
           </div>
         </CardHeader>
@@ -157,6 +169,11 @@ const TicketDetail = () => {
                 </Button>
               </div>
             </div>
+            {ticket.assigned_to && ticket.assigned_to !== user?.id && (
+              <div className="p-2 rounded bg-warning/10 border border-warning/20">
+                <p className="text-xs font-mono text-warning">⚠ Este ticket será automaticamente transferido para você ao salvar a nota.</p>
+              </div>
+            )}
             <div className="space-y-2">
               <Label>Descrição *</Label>
               <Textarea value={newNote.description} onChange={e => setNewNote({ ...newNote, description: e.target.value })} placeholder="Descreva a atividade..." />

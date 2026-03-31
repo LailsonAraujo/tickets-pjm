@@ -1,10 +1,15 @@
-import { useQuery } from '@tanstack/react-query';
+import { useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Ticket, Clock, CheckCircle, AlertTriangle, Zap, Activity, ExternalLink } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { useToast } from '@/hooks/use-toast';
+import { Ticket, Clock, CheckCircle, AlertTriangle, Zap, Activity, ExternalLink, Pencil, Plus, Trash2, Save } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 const statusColors: Record<string, string> = {
@@ -15,32 +20,28 @@ const statusColors: Record<string, string> = {
   cancelado: 'bg-destructive/20 text-destructive',
 };
 
-const quickLinks = [
-  { label: 'Grafana', url: 'https://grafana.pjm.net.br/' },
-  { label: 'Zabbix', url: 'https://zabbix.pjm.net.br/' },
-  { label: 'IXC', url: 'https://ixc.pjm.net.br/login.php' },
-  { label: 'Planilha Geral', url: 'https://docs.google.com/spreadsheets/d/1BQBaz8sCbS2K0ANKd-8bUjxEADBr2aOsnq6jIYR4meY/edit?gid=0#gid=0' },
-  { label: 'BGP.HE', url: 'https://bgp.he.net/' },
-  { label: 'BGP Tools', url: 'https://bgp.tools/' },
-  { label: 'Planilha Rede', url: 'https://docs.google.com/spreadsheets/u/0/d/16AXA-qef4mO4Af2X2otN21vBlUyGcPma9_ikwdSijgc/htmlview#gid=0' },
-  { label: 'SGI Intec', url: 'https://sgi.intecsolutions.com.br/' },
-  { label: 'PHPIPAM', url: 'http://45.6.36.186:65500/index.php?page=login' },
-  { label: 'FTP', url: 'http://10.225.164.5:3670/login?redirect=/files' },
-  { label: 'cPanel', url: 'https://pjm.net.br:2083/' },
-  { label: 'LibreNMS', url: 'http://nms.pjm.net.br/' },
-  { label: 'Routinator', url: 'http://[2804:3b7c:900::5a]:8323/ui/' },
-  { label: 'MW Soluções', url: 'https://sistemamw.pjm.net.br/login' },
-  { label: 'Diagrama', url: 'http://nms.pjm.net.br/plugins/Weathermap/output/backbone.html' },
-];
-
 const Dashboard = () => {
   const { isAdmin } = useAuth();
   const navigate = useNavigate();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [editingLinks, setEditingLinks] = useState(false);
+  const [newLink, setNewLink] = useState({ label: '', url: '' });
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState({ label: '', url: '' });
 
   const { data: tickets } = useQuery({
     queryKey: ['tickets-summary'],
     queryFn: async () => {
       const { data } = await supabase.from('tickets').select('id, status, priority, created_at');
+      return data ?? [];
+    },
+  });
+
+  const { data: quickLinks } = useQuery({
+    queryKey: ['quick-links'],
+    queryFn: async () => {
+      const { data } = await supabase.from('quick_links').select('*').order('sort_order');
       return data ?? [];
     },
   });
@@ -56,6 +57,45 @@ const Dashboard = () => {
     },
     enabled: isAdmin,
     refetchInterval: 10000,
+  });
+
+  const addLink = useMutation({
+    mutationFn: async () => {
+      const maxOrder = quickLinks?.length ? Math.max(...quickLinks.map((l: any) => l.sort_order)) + 1 : 1;
+      const { error } = await supabase.from('quick_links').insert({ label: newLink.label, url: newLink.url, sort_order: maxOrder });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['quick-links'] });
+      setNewLink({ label: '', url: '' });
+      toast({ title: 'Link adicionado!' });
+    },
+    onError: (err: any) => toast({ title: 'Erro', description: err.message, variant: 'destructive' }),
+  });
+
+  const updateLink = useMutation({
+    mutationFn: async ({ id, label, url }: { id: string; label: string; url: string }) => {
+      const { error } = await supabase.from('quick_links').update({ label, url }).eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['quick-links'] });
+      setEditingId(null);
+      toast({ title: 'Link atualizado!' });
+    },
+    onError: (err: any) => toast({ title: 'Erro', description: err.message, variant: 'destructive' }),
+  });
+
+  const deleteLink = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from('quick_links').delete().eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['quick-links'] });
+      toast({ title: 'Link removido!' });
+    },
+    onError: (err: any) => toast({ title: 'Erro', description: err.message, variant: 'destructive' }),
   });
 
   const open = tickets?.filter(t => t.status === 'aberto').length ?? 0;
@@ -119,16 +159,68 @@ const Dashboard = () => {
       {/* Quick Links */}
       <Card className="noc-card">
         <CardHeader>
-          <CardTitle className="text-lg font-mono flex items-center gap-2 text-glow">
-            <ExternalLink className="h-5 w-5 text-primary" />
-            Acesso Rápido
-          </CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-lg font-mono flex items-center gap-2 text-glow">
+              <ExternalLink className="h-5 w-5 text-primary" />
+              Acesso Rápido
+            </CardTitle>
+            {isAdmin && (
+              <Button variant="outline" size="sm" onClick={() => setEditingLinks(!editingLinks)} className="gap-1 font-mono text-xs">
+                <Pencil className="h-3 w-3" />
+                {editingLinks ? 'Fechar' : 'Gerenciar'}
+              </Button>
+            )}
+          </div>
         </CardHeader>
         <CardContent>
+          {isAdmin && editingLinks && (
+            <div className="mb-4 space-y-3">
+              <div className="flex items-end gap-2">
+                <div className="flex-1 space-y-1">
+                  <Label className="text-xs font-mono">Nome</Label>
+                  <Input value={newLink.label} onChange={e => setNewLink({ ...newLink, label: e.target.value })} placeholder="Nome do link" className="h-8 text-xs" />
+                </div>
+                <div className="flex-[2] space-y-1">
+                  <Label className="text-xs font-mono">URL</Label>
+                  <Input value={newLink.url} onChange={e => setNewLink({ ...newLink, url: e.target.value })} placeholder="https://..." className="h-8 text-xs" />
+                </div>
+                <Button size="sm" onClick={() => addLink.mutate()} disabled={!newLink.label || !newLink.url} className="h-8 gap-1">
+                  <Plus className="h-3 w-3" /> Adicionar
+                </Button>
+              </div>
+              <div className="space-y-1">
+                {quickLinks?.map((link: any) => (
+                  <div key={link.id} className="flex items-center gap-2 p-2 rounded bg-muted/30 border border-border">
+                    {editingId === link.id ? (
+                      <>
+                        <Input value={editForm.label} onChange={e => setEditForm({ ...editForm, label: e.target.value })} className="h-7 text-xs flex-1" />
+                        <Input value={editForm.url} onChange={e => setEditForm({ ...editForm, url: e.target.value })} className="h-7 text-xs flex-[2]" />
+                        <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => updateLink.mutate({ id: link.id, ...editForm })}>
+                          <Save className="h-3 w-3" />
+                        </Button>
+                        <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => setEditingId(null)}>✕</Button>
+                      </>
+                    ) : (
+                      <>
+                        <span className="text-xs font-mono flex-1 truncate">{link.label}</span>
+                        <span className="text-xs text-muted-foreground flex-[2] truncate">{link.url}</span>
+                        <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => { setEditingId(link.id); setEditForm({ label: link.label, url: link.url }); }}>
+                          <Pencil className="h-3 w-3" />
+                        </Button>
+                        <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" onClick={() => deleteLink.mutate(link.id)}>
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                      </>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2">
-            {quickLinks.map((link) => (
+            {quickLinks?.map((link: any) => (
               <a
-                key={link.label}
+                key={link.id}
                 href={link.url}
                 target="_blank"
                 rel="noopener noreferrer"
