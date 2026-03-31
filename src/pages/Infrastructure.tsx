@@ -343,10 +343,23 @@ export default function Infrastructure() {
   const openSSHTerminal = (host: Host) => {
     const user = host.username || 'root';
     const port = host.port || 22;
-    // ssh:// URI opens the native SSH client on Windows (OpenSSH), macOS, and Linux
-    const sshUri = `ssh://${user}@${host.ip_address}:${port}`;
-    window.open(sshUri, '_blank');
-    toast.success('Abrindo terminal SSH...');
+    const sshCommand = port === 22
+      ? `ssh ${user}@${host.ip_address}`
+      : `ssh ${user}@${host.ip_address} -p ${port}`;
+
+    // Copy to clipboard
+    navigator.clipboard.writeText(sshCommand).then(() => {
+      toast.success(`Comando copiado: ${sshCommand}`, {
+        description: 'Cole no CMD, PowerShell, PuTTY ou terminal Linux.',
+        duration: 5000,
+      });
+    }).catch(() => {
+      // Fallback: show in a prompt
+      toast.info(sshCommand, {
+        description: 'Copie e cole no seu terminal.',
+        duration: 8000,
+      });
+    });
   };
 
   const handleDecryptPassword = (hostId: string) => {
