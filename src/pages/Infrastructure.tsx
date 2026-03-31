@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import {
-  FolderOpen, FolderPlus, Server, Plus, Upload, Copy, Trash2, ChevronRight, ChevronDown, Lock, Eye, Terminal
+  FolderOpen, FolderPlus, Server, Plus, Upload, Copy, Trash2, ChevronRight, ChevronDown, Lock, Eye, Terminal, MonitorSmartphone
 } from 'lucide-react';
 import CryptoJS from 'crypto-js';
 
