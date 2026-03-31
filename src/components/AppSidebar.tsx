@@ -22,6 +22,7 @@ const mainItems = [
 ];
 
 const adminItems = [
+  { title: 'Monitor', url: '/monitor', icon: Activity },
   { title: 'Usuários', url: '/users', icon: Users },
   { title: 'Logs', url: '/logs', icon: ScrollText },
 ];

@@ -40,6 +40,7 @@ function AppRoutes() {
         <Route path="/tickets" element={<Tickets />} />
         <Route path="/tickets/:id" element={<TicketDetail />} />
         <Route path="/provisioning" element={<Provisioning />} />
+        <Route path="/monitor" element={<Monitor />} />
         <Route path="/users" element={<UsersPage />} />
         <Route path="/logs" element={<Logs />} />
         <Route path="*" element={<NotFound />} />
