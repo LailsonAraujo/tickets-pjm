@@ -1,4 +1,4 @@
-import { Terminal, LayoutDashboard, Ticket, Users, ScrollText, Zap, LogOut } from 'lucide-react';
+import { Terminal, LayoutDashboard, Ticket, Users, ScrollText, Zap, LogOut, Activity } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import { useAuth } from '@/contexts/AuthContext';
 import {
