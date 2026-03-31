@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -11,10 +11,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import {
-  FolderOpen, FolderPlus, Server, Plus, Upload, Copy, Trash2, ChevronRight, ChevronDown, Edit, Lock, Eye, EyeOff
+  FolderOpen, FolderPlus, Server, Plus, Upload, Copy, Trash2, ChevronRight, ChevronDown, Lock, Eye, Terminal
 } from 'lucide-react';
 import CryptoJS from 'crypto-js';
-import { XMLParser } from 'fast-xml-parser';
 
 const CATEGORIES = ['Roteador', 'Switch', 'OLT', 'Servidor', 'VM'] as const;
 
@@ -40,6 +39,68 @@ type Folder = {
   created_at: string;
 };
 
+// Parse .mxtsessions INI-style file from MobaXterm
+function parseMxtSessions(text: string) {
+  const lines = text.split(/\r?\n/);
+  const sections: { subrep: string; hosts: { name: string; ip: string; port: number; username: string }[] }[] = [];
+  let currentSection: typeof sections[0] | null = null;
+
+  for (const line of lines) {
+    const sectionMatch = line.match(/^\[Bookmarks(?:_\d+)?\]$/);
+    if (sectionMatch) {
+      currentSection = { subrep: '', hosts: [] };
+      sections.push(currentSection);
+      continue;
+    }
+
+    if (!currentSection) continue;
+
+    const subrepMatch = line.match(/^SubRep=(.+)$/);
+    if (subrepMatch) {
+      currentSection.subrep = subrepMatch[1].trim();
+      continue;
+    }
+
+    if (line.startsWith('ImgNum=') || !line.includes('=') || !line.includes('%')) continue;
+
+    // Host line: name=#type#subtype%IP%Port%User%...
+    const eqIdx = line.indexOf('=');
+    if (eqIdx < 1) continue;
+    const hostName = line.substring(0, eqIdx).trim();
+    const value = line.substring(eqIdx + 1);
+
+    // Remove the #type#subtype prefix
+    const afterHash = value.replace(/^#\d+#\d+/, '');
+    if (!afterHash.startsWith('%')) continue;
+    const fields = afterHash.substring(1).split('%');
+    const ip = fields[0] || '';
+    const port = parseInt(fields[1]) || 22;
+    let username = fields[2] || '';
+    // Clean username: remove brackets, replace __PIPE__ with |
+    username = username.replace(/^\[/, '').replace(/\]$/, '').replace(/__PIPE__/g, '|').trim();
+    // Sometimes the format includes spaces around pipe
+    username = username.replace(/\s*\|\s*/g, '|');
+
+    if (!ip) continue;
+
+    currentSection.hosts.push({ name: hostName, ip, port, username });
+  }
+
+  return sections.filter(s => s.hosts.length > 0 || s.subrep);
+}
+
+// Infer category from folder path or host name
+function inferCategory(folderPath: string, hostName: string): string {
+  const combined = (folderPath + ' ' + hostName).toLowerCase();
+  if (combined.includes('olt')) return 'OLT';
+  if (combined.includes('switch') || combined.includes('sw-l')) return 'Switch';
+  if (combined.includes('rout') || combined.includes('rtr') || combined.includes('router') || combined.includes('\\ce') || combined.includes('\\router')) return 'Roteador';
+  if (combined.includes('vm') || combined.includes('virtual')) return 'VM';
+  if (combined.includes('servidor') || combined.includes('server') || combined.includes('serv')) return 'Servidor';
+  if (combined.includes('cgnat') || combined.includes('hillstone') || combined.includes('fw-')) return 'Roteador';
+  return 'Servidor';
+}
+
 export default function Infrastructure() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -48,17 +109,19 @@ export default function Infrastructure() {
   const [newFolderOpen, setNewFolderOpen] = useState(false);
   const [newFolderName, setNewFolderName] = useState('');
   const [newHostOpen, setNewHostOpen] = useState(false);
-  const [importOpen, setImportOpen] = useState(false);
   const [masterKeyOpen, setMasterKeyOpen] = useState(false);
   const [masterKey, setMasterKey] = useState('');
-  const [pendingImportHosts, setPendingImportHosts] = useState<any[]>([]);
+  const [pendingImport, setPendingImport] = useState<ReturnType<typeof parseMxtSessions>>([]);
   const [showPasswords, setShowPasswords] = useState<Record<string, string>>({});
   const [decryptKeyOpen, setDecryptKeyOpen] = useState(false);
   const [decryptKeyTarget, setDecryptKeyTarget] = useState('');
   const [decryptKey, setDecryptKey] = useState('');
+  const [connectOpen, setConnectOpen] = useState(false);
+  const [connectHost, setConnectHost] = useState<Host | null>(null);
+  const [connectMasterKey, setConnectMasterKey] = useState('');
+  const [connectDecrypted, setConnectDecrypted] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Host form state
   const [hostForm, setHostForm] = useState({
     name: '', category: 'Servidor' as string, ip_address: '', port: '22',
     username: '', password: '', notes: '', masterKey: ''
@@ -139,22 +202,6 @@ export default function Infrastructure() {
     },
   });
 
-  const bulkInsertHosts = useMutation({
-    mutationFn: async (hostsData: any[]) => {
-      const { error } = await supabase.from('hosts').insert(hostsData);
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['hosts'] });
-      setMasterKeyOpen(false);
-      setImportOpen(false);
-      setMasterKey('');
-      setPendingImportHosts([]);
-      toast.success('Hosts importados com sucesso');
-    },
-    onError: () => toast.error('Erro ao importar hosts'),
-  });
-
   const handleAddHost = () => {
     if (!hostForm.name || !hostForm.ip_address) {
       toast.error('Nome e IP são obrigatórios');
@@ -163,7 +210,6 @@ export default function Infrastructure() {
     const encryptedPass = hostForm.password && hostForm.masterKey
       ? CryptoJS.AES.encrypt(hostForm.password, hostForm.masterKey).toString()
       : null;
-
     createHost.mutate({
       user_id: user!.id,
       folder_id: selectedFolder,
@@ -184,60 +230,13 @@ export default function Infrastructure() {
     reader.onload = (ev) => {
       try {
         const text = ev.target?.result as string;
-        const parser = new XMLParser({ ignoreAttributes: false, attributeNamePrefix: '' });
-        const result = parser.parse(text);
-
-        // Try to find sessions in various MobaXterm XML structures
-        let sessions: any[] = [];
-        const findSessions = (obj: any) => {
-          if (!obj || typeof obj !== 'object') return;
-          if (Array.isArray(obj)) { obj.forEach(findSessions); return; }
-          // Look for items with '#text' or 'value' containing '#' separated data
-          if (obj['#text'] && typeof obj['#text'] === 'string' && obj['#text'].includes('#')) {
-            sessions.push({ name: obj.name || obj.Name || 'Host', value: obj['#text'] });
-          }
-          if (obj.value && typeof obj.value === 'string' && obj.value.includes('#')) {
-            sessions.push({ name: obj.name || obj.Name || 'Host', value: obj.value });
-          }
-          Object.values(obj).forEach(findSessions);
-        };
-        findSessions(result);
-
-        if (sessions.length === 0) {
-          // Fallback: parse as INI-like
-          const lines = text.split('\n');
-          lines.forEach(line => {
-            const match = line.match(/^(.+?)=(.+)$/);
-            if (match) {
-              const parts = match[2].split('#');
-              if (parts.length >= 2 && parts[0].match(/\d+/)) {
-                sessions.push({ name: match[1].trim(), value: match[2] });
-              }
-            }
-          });
-        }
-
-        const parsed = sessions.map(s => {
-          const data = s.value.split('#');
-          return {
-            name: s.name,
-            ip_address: data[1] || data[0] || '',
-            port: parseInt(data[2]) || 22,
-            username: data[3] || '',
-            raw_password: data[4] || '',
-            category: s.name.toLowerCase().includes('olt') ? 'OLT'
-              : s.name.toLowerCase().includes('switch') ? 'Switch'
-              : s.name.toLowerCase().includes('rout') ? 'Roteador'
-              : 'Servidor',
-          };
-        }).filter(h => h.ip_address);
-
-        if (parsed.length === 0) {
+        const sections = parseMxtSessions(text);
+        const totalHosts = sections.reduce((sum, s) => sum + s.hosts.length, 0);
+        if (totalHosts === 0) {
           toast.error('Nenhum host encontrado no arquivo');
           return;
         }
-
-        setPendingImportHosts(parsed);
+        setPendingImport(sections);
         setMasterKeyOpen(true);
       } catch {
         toast.error('Erro ao processar arquivo');
@@ -247,25 +246,96 @@ export default function Infrastructure() {
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
-  const handleConfirmImport = () => {
+  const handleConfirmImport = async () => {
     if (!masterKey) {
       toast.error('Informe a chave mestra');
       return;
     }
-    const hostsData = pendingImportHosts.map(h => ({
-      user_id: user!.id,
-      folder_id: selectedFolder,
-      name: h.name,
-      category: h.category,
-      ip_address: h.ip_address,
-      port: h.port,
-      username: h.username || null,
-      encrypted_password: h.raw_password
-        ? CryptoJS.AES.encrypt(h.raw_password, masterKey).toString()
-        : null,
-      notes: null,
-    }));
-    bulkInsertHosts.mutate(hostsData);
+    try {
+      // Build folder hierarchy from SubRep paths
+      const folderMap = new Map<string, string>(); // path -> folder_id
+
+      for (const section of pendingImport) {
+        if (!section.subrep) continue;
+        // SubRep like "PJM\OLT\HUAWEI" -> parts: ["PJM", "OLT", "HUAWEI"]
+        const parts = section.subrep.split('\\');
+        let parentId: string | null = null;
+
+        for (let i = 0; i < parts.length; i++) {
+          const path = parts.slice(0, i + 1).join('\\');
+          if (folderMap.has(path)) {
+            parentId = folderMap.get(path)!;
+            continue;
+          }
+
+          // Check if folder already exists
+          let query = supabase.from('host_folders').select('id')
+            .eq('name', parts[i]).eq('user_id', user!.id);
+          if (parentId) {
+            query = query.eq('parent_id', parentId);
+          } else {
+            query = query.is('parent_id', null);
+          }
+          const { data: existing } = await query.maybeSingle();
+
+          if (existing) {
+            folderMap.set(path, existing.id);
+            parentId = existing.id;
+          } else {
+            const { data: created, error } = await supabase.from('host_folders')
+              .insert({ user_id: user!.id, name: parts[i], parent_id: parentId })
+              .select('id').single();
+            if (error) throw error;
+            folderMap.set(path, created.id);
+            parentId = created.id;
+          }
+        }
+      }
+
+      // Insert hosts into their folders
+      const allHosts: any[] = [];
+      for (const section of pendingImport) {
+        const folderId = section.subrep ? (folderMap.get(section.subrep) || null) : null;
+        for (const h of section.hosts) {
+          // Split username|password if present
+          let username = h.username;
+          let password = '';
+          if (username.includes('|')) {
+            const uParts = username.split('|');
+            username = uParts[0].trim();
+            password = uParts.slice(1).join('|').trim();
+          }
+
+          allHosts.push({
+            user_id: user!.id,
+            folder_id: folderId,
+            name: h.name,
+            category: inferCategory(section.subrep, h.name),
+            ip_address: h.ip,
+            port: h.port,
+            username: username || null,
+            encrypted_password: password
+              ? CryptoJS.AES.encrypt(password, masterKey).toString()
+              : null,
+            notes: null,
+          });
+        }
+      }
+
+      if (allHosts.length > 0) {
+        const { error } = await supabase.from('hosts').insert(allHosts);
+        if (error) throw error;
+      }
+
+      queryClient.invalidateQueries({ queryKey: ['host_folders'] });
+      queryClient.invalidateQueries({ queryKey: ['hosts'] });
+      setMasterKeyOpen(false);
+      setMasterKey('');
+      setPendingImport([]);
+      toast.success(`${allHosts.length} host(s) importados com sucesso!`);
+    } catch (err: any) {
+      toast.error('Erro ao importar: ' + (err.message || 'erro desconhecido'));
+    }
   };
 
   const copySSH = (host: Host) => {
@@ -274,7 +344,27 @@ export default function Infrastructure() {
     toast.success('Comando SSH copiado!');
   };
 
-  const handleDecryptPassword = (hostId: string, encrypted: string) => {
+  const openConnect = (host: Host) => {
+    setConnectHost(host);
+    setConnectMasterKey('');
+    setConnectDecrypted(null);
+    setConnectOpen(true);
+  };
+
+  const handleConnectDecrypt = () => {
+    if (!connectHost?.encrypted_password || !connectMasterKey) return;
+    try {
+      const bytes = CryptoJS.AES.decrypt(connectHost.encrypted_password, connectMasterKey);
+      const decrypted = bytes.toString(CryptoJS.enc.Utf8);
+      if (!decrypted) throw new Error();
+      setConnectDecrypted(decrypted);
+      setTimeout(() => setConnectDecrypted(null), 30000);
+    } catch {
+      toast.error('Chave mestra incorreta');
+    }
+  };
+
+  const handleDecryptPassword = (hostId: string) => {
     setDecryptKeyTarget(hostId);
     setDecryptKeyOpen(true);
     setDecryptKey('');
@@ -309,6 +399,10 @@ export default function Infrastructure() {
 
   const rootFolders = folders.filter(f => !f.parent_id);
   const getChildren = (parentId: string) => folders.filter(f => f.parent_id === parentId);
+  const getFolderHostCount = (folderId: string): number => {
+    // We only have hosts for currently selected folder, so just show folder structure
+    return 0;
+  };
 
   const renderFolder = (folder: Folder, depth = 0) => {
     const children = getChildren(folder.id);
@@ -316,7 +410,7 @@ export default function Infrastructure() {
     const isSelected = selectedFolder === folder.id;
 
     return (
-      <div key={folder.id}>
+      <div key={folder.id} className="group">
         <div
           className={`flex items-center gap-1 py-1.5 px-2 cursor-pointer rounded text-sm font-mono transition-colors ${
             isSelected ? 'bg-accent text-accent-foreground' : 'hover:bg-secondary text-muted-foreground hover:text-foreground'
@@ -333,7 +427,7 @@ export default function Infrastructure() {
           <FolderOpen className="h-4 w-4 text-primary" />
           <span className="truncate">{folder.name}</span>
           <button onClick={(e) => { e.stopPropagation(); deleteFolder.mutate(folder.id); }}
-            className="ml-auto opacity-0 group-hover:opacity-100 hover:text-destructive">
+            className="ml-auto opacity-0 group-hover:opacity-100 hover:text-destructive transition-opacity">
             <Trash2 className="h-3 w-3" />
           </button>
         </div>
@@ -353,7 +447,7 @@ export default function Infrastructure() {
           <p className="text-sm text-muted-foreground font-mono mt-1">Gerenciamento de hosts e dispositivos</p>
         </div>
         <div className="flex gap-2">
-          <input type="file" ref={fileInputRef} accept=".mxtpro,.xml,.ini" className="hidden" onChange={handleFileImport} />
+          <input type="file" ref={fileInputRef} accept=".mxtsessions,.mxtpro,.xml,.ini" className="hidden" onChange={handleFileImport} />
           <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()}>
             <Upload className="h-4 w-4 mr-1" /> Importar MobaXterm
           </Button>
@@ -483,10 +577,10 @@ export default function Infrastructure() {
                   <TableCell className="font-mono">
                     {host.encrypted_password ? (
                       showPasswords[host.id] ? (
-                        <span className="text-xs text-warning">{showPasswords[host.id]}</span>
+                        <span className="text-xs text-primary">{showPasswords[host.id]}</span>
                       ) : (
                         <Button variant="ghost" size="sm" className="h-6 text-xs"
-                          onClick={() => handleDecryptPassword(host.id, host.encrypted_password!)}>
+                          onClick={() => handleDecryptPassword(host.id)}>
                           <Eye className="h-3 w-3 mr-1" /> Ver
                         </Button>
                       )
@@ -494,6 +588,9 @@ export default function Infrastructure() {
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-1">
+                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openConnect(host)} title="Conectar">
+                        <Terminal className="h-3.5 w-3.5 text-primary" />
+                      </Button>
                       <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => copySSH(host)} title="Copiar SSH">
                         <Copy className="h-3.5 w-3.5" />
                       </Button>
@@ -509,16 +606,101 @@ export default function Infrastructure() {
         </div>
       </div>
 
+      {/* Connect Dialog */}
+      <Dialog open={connectOpen} onOpenChange={setConnectOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="font-mono flex items-center gap-2">
+              <Terminal className="h-5 w-5 text-primary" />
+              Conectar — {connectHost?.name}
+            </DialogTitle>
+          </DialogHeader>
+          {connectHost && (
+            <div className="space-y-4">
+              <div className="bg-secondary/50 rounded-md p-4 font-mono text-sm space-y-2">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Host:</span>
+                  <span className="text-foreground">{connectHost.ip_address}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Porta:</span>
+                  <span className="text-foreground">{connectHost.port || 22}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Usuário:</span>
+                  <span className="text-foreground">{connectHost.username || '—'}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground">Senha:</span>
+                  {connectDecrypted ? (
+                    <span className="text-primary font-bold">{connectDecrypted}</span>
+                  ) : connectHost.encrypted_password ? (
+                    <span className="text-muted-foreground italic text-xs">criptografada</span>
+                  ) : (
+                    <span className="text-muted-foreground">—</span>
+                  )}
+                </div>
+              </div>
+
+              {connectHost.encrypted_password && !connectDecrypted && (
+                <div className="flex gap-2">
+                  <Input
+                    type="password"
+                    value={connectMasterKey}
+                    onChange={e => setConnectMasterKey(e.target.value)}
+                    placeholder="Chave mestra para revelar senha"
+                    className="font-mono"
+                    onKeyDown={e => e.key === 'Enter' && handleConnectDecrypt()}
+                  />
+                  <Button onClick={handleConnectDecrypt} size="sm">
+                    <Lock className="h-4 w-4 mr-1" /> Revelar
+                  </Button>
+                </div>
+              )}
+
+              <div className="bg-card border border-border rounded-md p-3">
+                <p className="text-xs text-muted-foreground font-mono mb-1">Comando SSH:</p>
+                <div className="flex items-center gap-2">
+                  <code className="text-sm text-primary font-mono flex-1">
+                    ssh {connectHost.username || 'root'}@{connectHost.ip_address}
+                    {connectHost.port && connectHost.port !== 22 ? ` -p ${connectHost.port}` : ''}
+                  </code>
+                  <Button variant="outline" size="sm" onClick={() => copySSH(connectHost)}>
+                    <Copy className="h-3 w-3" />
+                  </Button>
+                </div>
+              </div>
+
+              {connectDecrypted && (
+                <Button variant="outline" className="w-full font-mono" onClick={() => {
+                  navigator.clipboard.writeText(connectDecrypted);
+                  toast.success('Senha copiada!');
+                }}>
+                  <Copy className="h-4 w-4 mr-1" /> Copiar Senha
+                </Button>
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
       {/* Master Key Dialog for Import */}
       <Dialog open={masterKeyOpen} onOpenChange={setMasterKeyOpen}>
         <DialogContent>
           <DialogHeader><DialogTitle className="font-mono">Chave Mestra para Importação</DialogTitle></DialogHeader>
           <p className="text-sm text-muted-foreground font-mono">
-            {pendingImportHosts.length} host(s) encontrados. Informe a chave mestra para criptografar as senhas com AES-256.
+            {pendingImport.reduce((sum, s) => sum + s.hosts.length, 0)} host(s) encontrados em {pendingImport.filter(s => s.subrep).length} pasta(s).
+            Informe a chave mestra para criptografar as senhas com AES-256.
           </p>
+          <div className="max-h-40 overflow-y-auto text-xs font-mono text-muted-foreground space-y-1 bg-secondary/30 rounded p-2">
+            {pendingImport.filter(s => s.subrep).map((s, i) => (
+              <div key={i}>📁 {s.subrep.replace(/\\/g, ' → ')} ({s.hosts.length} hosts)</div>
+            ))}
+          </div>
           <Input type="password" value={masterKey} onChange={e => setMasterKey(e.target.value)}
-            placeholder="Chave mestra" className="font-mono" />
-          <Button onClick={handleConfirmImport} disabled={bulkInsertHosts.isPending} className="w-full">
+            placeholder="Chave mestra" className="font-mono"
+            onKeyDown={e => e.key === 'Enter' && handleConfirmImport()} />
+          <Button onClick={handleConfirmImport} className="w-full">
             <Lock className="h-4 w-4 mr-1" /> Criptografar e Importar
           </Button>
         </DialogContent>
