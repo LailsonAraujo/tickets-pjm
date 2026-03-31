@@ -340,24 +340,13 @@ export default function Infrastructure() {
     toast.success('Comando SSH copiado!');
   };
 
-  const openConnect = (host: Host) => {
-    setConnectHost(host);
-    setConnectMasterKey('');
-    setConnectDecrypted(null);
-    setConnectOpen(true);
-  };
-
-  const handleConnectDecrypt = () => {
-    if (!connectHost?.encrypted_password || !connectMasterKey) return;
-    try {
-      const bytes = CryptoJS.AES.decrypt(connectHost.encrypted_password, connectMasterKey);
-      const decrypted = bytes.toString(CryptoJS.enc.Utf8);
-      if (!decrypted) throw new Error();
-      setConnectDecrypted(decrypted);
-      setTimeout(() => setConnectDecrypted(null), 30000);
-    } catch {
-      toast.error('Chave mestra incorreta');
-    }
+  const openSSHTerminal = (host: Host) => {
+    const user = host.username || 'root';
+    const port = host.port || 22;
+    // ssh:// URI opens the native SSH client on Windows (OpenSSH), macOS, and Linux
+    const sshUri = `ssh://${user}@${host.ip_address}:${port}`;
+    window.open(sshUri, '_blank');
+    toast.success('Abrindo terminal SSH...');
   };
 
   const handleDecryptPassword = (hostId: string) => {
