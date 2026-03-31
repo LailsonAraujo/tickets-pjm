@@ -12,6 +12,7 @@ import TicketDetail from "./pages/TicketDetail";
 import Provisioning from "./pages/Provisioning";
 import UsersPage from "./pages/UsersPage";
 import Logs from "./pages/Logs";
+import Monitor from "./pages/Monitor";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
