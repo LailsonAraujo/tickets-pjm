@@ -59,6 +59,7 @@ const Provisioning = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tickets'] });
+      queryClient.invalidateQueries({ queryKey: ['tickets-summary'] });
       setSuccess(true);
       toast({ title: 'ONU provisionada com sucesso!' });
       setTimeout(() => {
