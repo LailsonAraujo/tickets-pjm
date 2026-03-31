@@ -97,6 +97,88 @@ export type Database = {
         }
         Relationships: []
       }
+      host_folders: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          parent_id: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          parent_id?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          parent_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "host_folders_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "host_folders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hosts: {
+        Row: {
+          category: string | null
+          created_at: string
+          encrypted_password: string | null
+          folder_id: string | null
+          id: string
+          ip_address: string
+          name: string
+          notes: string | null
+          port: number | null
+          user_id: string
+          username: string | null
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string
+          encrypted_password?: string | null
+          folder_id?: string | null
+          id?: string
+          ip_address: string
+          name: string
+          notes?: string | null
+          port?: number | null
+          user_id: string
+          username?: string | null
+        }
+        Update: {
+          category?: string | null
+          created_at?: string
+          encrypted_password?: string | null
+          folder_id?: string | null
+          id?: string
+          ip_address?: string
+          name?: string
+          notes?: string | null
+          port?: number | null
+          user_id?: string
+          username?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hosts_folder_id_fkey"
+            columns: ["folder_id"]
+            isOneToOne: false
+            referencedRelation: "host_folders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null
