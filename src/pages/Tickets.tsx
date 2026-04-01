@@ -65,15 +65,31 @@ const Tickets = () => {
 
   const createTicket = useMutation({
     mutationFn: async () => {
-      const { error } = await supabase.from('tickets').insert({
+      const { data, error } = await supabase.from('tickets').insert({
         title,
         description,
         priority,
         category,
         assigned_to: assignedTo || null,
         created_by: user!.id,
-      });
+      }).select('id').single();
       if (error) throw error;
+
+      // Get display names for the notification
+      const creatorProfile = users?.find(u => u.user_id === user!.id);
+      const assignedProfile = assignedTo ? users?.find(u => u.user_id === assignedTo) : null;
+
+      // Send Telegram notification (fire-and-forget)
+      supabase.functions.invoke('telegram-notify', {
+        body: {
+          ticket_title: title,
+          ticket_id: data.id,
+          assigned_to_name: assignedProfile?.display_name ?? null,
+          created_by_name: creatorProfile?.display_name ?? user!.email ?? 'Desconhecido',
+          priority,
+          category,
+        },
+      }).catch(err => console.error('Telegram notify error:', err));
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tickets'] });
