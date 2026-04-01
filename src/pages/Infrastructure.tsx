@@ -12,7 +12,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import {
   FolderOpen, FolderPlus, Server, Plus, Upload, Copy, Trash2, ChevronRight, ChevronDown,
-  Lock, Eye, Terminal, MonitorSmartphone, Pencil, Share2, UserPlus, KeyRound
+  Lock, Eye, Terminal, Pencil, Share2, UserPlus, KeyRound
 } from 'lucide-react';
 import CryptoJS from 'crypto-js';
 
