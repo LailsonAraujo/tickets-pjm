@@ -13,7 +13,7 @@ import Provisioning from "./pages/Provisioning";
 import UsersPage from "./pages/UsersPage";
 import Logs from "./pages/Logs";
 import Monitor from "./pages/Monitor";
-import Infrastructure from "./pages/Infrastructure";
+
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
