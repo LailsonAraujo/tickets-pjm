@@ -48,7 +48,7 @@ const Tickets = () => {
   const { data: tickets, isLoading } = useQuery({
     queryKey: ['tickets', statusFilter],
     queryFn: async () => {
-      let query = supabase.from('tickets').select('*, profiles:created_by(display_name), assigned_profile:assigned_to(display_name)').order('created_at', { ascending: false });
+      let query = supabase.from('tickets').select('*').order('created_at', { ascending: false });
       if (statusFilter !== 'all') query = query.eq('status', statusFilter as Enums<'ticket_status'>);
       const { data } = await query;
       return data ?? [];
@@ -201,7 +201,9 @@ const Tickets = () => {
         <div className="text-center py-12 text-muted-foreground">Carregando...</div>
       ) : filtered && filtered.length > 0 ? (
         <div className="space-y-2">
-          {filtered.map((ticket: any) => (
+          {filtered.map((ticket: any) => {
+            const creator = users?.find(u => u.user_id === ticket.created_by);
+            return (
             <Card key={ticket.id} className="noc-card cursor-pointer hover:border-primary/30 transition-colors" onClick={() => navigate(`/tickets/${ticket.id}`)}>
               <CardContent className="p-4">
                 <div className="flex items-center justify-between flex-wrap gap-2">
@@ -209,7 +211,7 @@ const Tickets = () => {
                     <TicketIcon className="h-4 w-4 text-primary shrink-0" />
                     <div className="min-w-0">
                       <p className="font-medium truncate">{ticket.title}</p>
-                      <p className="text-xs text-muted-foreground font-mono">#{ticket.id.slice(0, 8)} • {ticket.profiles?.display_name}</p>
+                      <p className="text-xs text-muted-foreground font-mono">#{ticket.id.slice(0, 8)} • {creator?.display_name ?? 'Desconhecido'}</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
@@ -220,7 +222,8 @@ const Tickets = () => {
                 </div>
               </CardContent>
             </Card>
-          ))}
+            );
+          })}
         </div>
       ) : (
         <div className="text-center py-12">
