@@ -48,7 +48,7 @@ const Tickets = () => {
   const { data: tickets, isLoading } = useQuery({
     queryKey: ['tickets', statusFilter],
     queryFn: async () => {
-      let query = supabase.from('tickets').select('*, profiles:created_by(display_name), assigned_profile:assigned_to(display_name)').order('created_at', { ascending: false });
+      let query = supabase.from('tickets').select('*').order('created_at', { ascending: false });
       if (statusFilter !== 'all') query = query.eq('status', statusFilter as Enums<'ticket_status'>);
       const { data } = await query;
       return data ?? [];
