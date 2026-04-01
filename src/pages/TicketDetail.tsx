@@ -10,8 +10,9 @@ import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
-import { ArrowLeft, Play, Pause, Clock, Plus, Save } from 'lucide-react';
+import { ArrowLeft, Play, Pause, Clock, Plus, Save, Trash2 } from 'lucide-react';
 import type { Enums } from '@/integrations/supabase/types';
 
 function formatTime(seconds: number) {
@@ -33,21 +34,36 @@ const TicketDetail = () => {
   const [timerActive, setTimerActive] = useState(false);
   const [timerSeconds, setTimerSeconds] = useState(0);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const [deleteTicketOpen, setDeleteTicketOpen] = useState(false);
+  const [deleteNoteId, setDeleteNoteId] = useState<string | null>(null);
 
-  const { data: ticket } = useQuery({
+  // Fetch users for display name lookup
+  const { data: users } = useQuery({
+    queryKey: ['users-list'],
+    queryFn: async () => {
+      const { data } = await supabase.from('profiles').select('user_id, display_name').eq('is_active', true);
+      return data ?? [];
+    },
+  });
+
+  const { data: ticket, isLoading: ticketLoading } = useQuery({
     queryKey: ['ticket', id],
     queryFn: async () => {
-      const { data } = await supabase.from('tickets').select('*, profiles:created_by(display_name), assigned_profile:assigned_to(display_name)').eq('id', id!).single();
+      const { data, error } = await supabase.from('tickets').select('*').eq('id', id!).single();
+      if (error) throw error;
       return data;
     },
+    enabled: !!id && !!user,
   });
 
   const { data: notes } = useQuery({
     queryKey: ['ticket-notes', id],
     queryFn: async () => {
-      const { data } = await supabase.from('ticket_notes').select('*, profiles:author_id(display_name)').eq('ticket_id', id!).order('created_at', { ascending: false });
+      const { data, error } = await supabase.from('ticket_notes').select('*').eq('ticket_id', id!).order('created_at', { ascending: false });
+      if (error) throw error;
       return data ?? [];
     },
+    enabled: !!id && !!user,
   });
 
   useEffect(() => {
@@ -58,6 +74,11 @@ const TicketDetail = () => {
     }
     return () => { if (timerRef.current) clearInterval(timerRef.current); };
   }, [timerActive]);
+
+  const getDisplayName = (userId: string | null) => {
+    if (!userId) return 'Não atribuído';
+    return users?.find(u => u.user_id === userId)?.display_name ?? 'Desconhecido';
+  };
 
   const canEditTicket = isAdmin || ticket?.assigned_to === user?.id || ticket?.created_by === user?.id;
 
@@ -87,7 +108,6 @@ const TicketDetail = () => {
       });
       if (error) throw error;
 
-      // Auto-transfer: if current user is not the assigned tech, transfer ticket to them
       if (ticket && ticket.assigned_to !== user!.id) {
         await supabase.from('tickets').update({ assigned_to: user!.id }).eq('id', id!);
       }
@@ -99,25 +119,58 @@ const TicketDetail = () => {
       setShowNoteForm(false);
       setTimerActive(false);
       setTimerSeconds(0);
-      toast({ title: 'Nota adicionada! Ticket transferido para você.' });
+      toast({ title: 'Nota adicionada!' });
     },
     onError: (err: any) => toast({ title: 'Erro', description: err.message, variant: 'destructive' }),
   });
 
-  if (!ticket) return <div className="text-center py-12 text-muted-foreground">Carregando...</div>;
+  const deleteTicket = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase.from('tickets').delete().eq('id', id!);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast({ title: 'Ticket excluído!' });
+      navigate('/tickets');
+    },
+    onError: (err: any) => toast({ title: 'Erro', description: err.message, variant: 'destructive' }),
+  });
+
+  const deleteNote = useMutation({
+    mutationFn: async (noteId: string) => {
+      const { error } = await supabase.from('ticket_notes').delete().eq('id', noteId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['ticket-notes', id] });
+      setDeleteNoteId(null);
+      toast({ title: 'Nota excluída!' });
+    },
+    onError: (err: any) => toast({ title: 'Erro', description: err.message, variant: 'destructive' }),
+  });
+
+  if (ticketLoading) return <div className="text-center py-12 text-muted-foreground">Carregando...</div>;
+  if (!ticket) return <div className="text-center py-12 text-muted-foreground">Ticket não encontrado</div>;
 
   return (
     <div className="space-y-6 max-w-4xl">
-      <Button variant="ghost" onClick={() => navigate('/tickets')} className="gap-2">
-        <ArrowLeft className="h-4 w-4" /> Voltar
-      </Button>
+      <div className="flex items-center justify-between">
+        <Button variant="ghost" onClick={() => navigate('/tickets')} className="gap-2">
+          <ArrowLeft className="h-4 w-4" /> Voltar
+        </Button>
+        {isAdmin && (
+          <Button variant="destructive" size="sm" onClick={() => setDeleteTicketOpen(true)} className="gap-2">
+            <Trash2 className="h-4 w-4" /> Excluir Ticket
+          </Button>
+        )}
+      </div>
 
       <Card className="noc-card">
         <CardHeader>
           <div className="flex items-start justify-between flex-wrap gap-4">
             <div>
               <CardTitle className="text-xl font-mono">{ticket.title}</CardTitle>
-              <p className="text-xs text-muted-foreground font-mono mt-1">#{ticket.id.slice(0, 8)} • Criado por {(ticket as any).profiles?.display_name}</p>
+              <p className="text-xs text-muted-foreground font-mono mt-1">#{ticket.id.slice(0, 8)} • Criado por {getDisplayName(ticket.created_by)}</p>
             </div>
             <div className="flex items-center gap-2">
               {canEditTicket ? (
@@ -142,9 +195,7 @@ const TicketDetail = () => {
           <div className="flex gap-2 flex-wrap">
             <Badge variant="outline">{ticket.priority}</Badge>
             <Badge variant="outline">{ticket.category}</Badge>
-            {(ticket as any).assigned_profile?.display_name && (
-              <Badge variant="outline">Resp: {(ticket as any).assigned_profile.display_name}</Badge>
-            )}
+            <Badge variant="outline">Resp: {getDisplayName(ticket.assigned_to)}</Badge>
           </div>
         </CardContent>
       </Card>
@@ -163,7 +214,7 @@ const TicketDetail = () => {
             <div className="flex items-center justify-between">
               <h3 className="font-mono text-sm font-medium">Nova Nota</h3>
               <div className="flex items-center gap-2">
-                <Button variant="outline" size="sm" onClick={() => { setTimerActive(!timerActive); if (!timerActive && timerSeconds === 0) setTimerSeconds(0); }} className="gap-1 font-mono">
+                <Button variant="outline" size="sm" onClick={() => { setTimerActive(!timerActive); }} className="gap-1 font-mono">
                   {timerActive ? <Pause className="h-3 w-3" /> : <Play className="h-3 w-3" />}
                   {formatTime(timerSeconds)}
                 </Button>
@@ -207,12 +258,17 @@ const TicketDetail = () => {
           <Card key={note.id} className="noc-card">
             <CardContent className="p-4 space-y-2">
               <div className="flex items-center justify-between">
-                <p className="text-sm font-medium">{note.profiles?.display_name}</p>
+                <p className="text-sm font-medium">{getDisplayName(note.author_id)}</p>
                 <div className="flex items-center gap-2 text-xs text-muted-foreground">
                   <Clock className="h-3 w-3" />
                   <span className="font-mono">{formatTime(note.time_spent_seconds)}</span>
                   <span>•</span>
                   <span>{new Date(note.created_at).toLocaleString('pt-BR')}</span>
+                  {isAdmin && (
+                    <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive hover:text-destructive" onClick={() => setDeleteNoteId(note.id)}>
+                      <Trash2 className="h-3 w-3" />
+                    </Button>
+                  )}
                 </div>
               </div>
               <p className="text-sm">{note.description}</p>
@@ -235,6 +291,38 @@ const TicketDetail = () => {
           <p className="text-center text-muted-foreground text-sm py-8">Nenhuma nota registrada</p>
         )}
       </div>
+
+      {/* Delete Ticket Dialog */}
+      <Dialog open={deleteTicketOpen} onOpenChange={setDeleteTicketOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Excluir Ticket</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">Tem certeza que deseja excluir este ticket? Esta ação não pode ser desfeita.</p>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteTicketOpen(false)}>Cancelar</Button>
+            <Button variant="destructive" onClick={() => deleteTicket.mutate()} disabled={deleteTicket.isPending}>
+              {deleteTicket.isPending ? 'Excluindo...' : 'Excluir'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Note Dialog */}
+      <Dialog open={!!deleteNoteId} onOpenChange={() => setDeleteNoteId(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Excluir Nota</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">Tem certeza que deseja excluir esta nota?</p>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteNoteId(null)}>Cancelar</Button>
+            <Button variant="destructive" onClick={() => deleteNoteId && deleteNote.mutate(deleteNoteId)} disabled={deleteNote.isPending}>
+              {deleteNote.isPending ? 'Excluindo...' : 'Excluir'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
