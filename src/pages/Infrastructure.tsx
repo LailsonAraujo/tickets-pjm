@@ -639,7 +639,7 @@ export default function Infrastructure() {
                       <div className="flex items-center gap-1">
                         {creds.username || '—'}
                         {creds.source === 'personal' && (
-                          <KeyRound className="h-3 w-3 text-primary" title="Credencial pessoal" />
+                          <span title="Credencial pessoal"><KeyRound className="h-3 w-3 text-primary" /></span>
                         )}
                       </div>
                     </TableCell>
