@@ -12,7 +12,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import {
   FolderOpen, FolderPlus, Server, Plus, Upload, Copy, Trash2, ChevronRight, ChevronDown,
-  Lock, Eye, Terminal, MonitorSmartphone, Pencil, Share2, UserPlus, KeyRound
+  Lock, Eye, Terminal, Pencil, Share2, UserPlus, KeyRound
 } from 'lucide-react';
 import CryptoJS from 'crypto-js';
 
@@ -425,20 +425,6 @@ export default function Infrastructure() {
     });
   };
 
-  const openPutty = (host: Host) => {
-    const creds = getEffectiveCredentials(host);
-    const u = creds.username || 'root';
-    const port = host.port || 22;
-    const batContent = `@echo off\r\nstart "" putty.exe -ssh ${u}@${host.ip_address} -P ${port}\r\nexit`;
-    const blob = new Blob([batContent], { type: 'application/bat' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `connect_${host.name.replace(/[^a-zA-Z0-9]/g, '_')}.bat`;
-    a.click();
-    URL.revokeObjectURL(url);
-    toast.success('Arquivo .bat baixado — execute para abrir no PuTTY', { duration: 4000 });
-  };
 
   const handleDecryptPassword = (hostId: string) => {
     setDecryptKeyTarget(hostId);
@@ -659,9 +645,6 @@ export default function Infrastructure() {
                       <div className="flex justify-end gap-1">
                         <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openSSHTerminal(host)} title="Copiar SSH">
                           <Terminal className="h-3.5 w-3.5 text-primary" />
-                        </Button>
-                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openPutty(host)} title="PuTTY">
-                          <MonitorSmartphone className="h-3.5 w-3.5 text-primary" />
                         </Button>
                         <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openCredentials(host.id)} title="Minhas Credenciais">
                           <KeyRound className="h-3.5 w-3.5 text-primary" />
