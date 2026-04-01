@@ -2,15 +2,16 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
-import { Users as UsersIcon, Shield, Plus } from 'lucide-react';
+import { Users as UsersIcon, Shield, Plus, Pencil, Trash2 } from 'lucide-react';
 import { Navigate } from 'react-router-dom';
 import type { Enums } from '@/integrations/supabase/types';
 
@@ -22,10 +23,11 @@ const roleLabels: Record<string, string> = {
 };
 
 const UsersPage = () => {
-  const { isAdmin } = useAuth();
+  const { isAdmin, user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [editDialog, setEditDialog] = useState<{ open: boolean; userId: string; displayName: string; isActive: boolean }>({ open: false, userId: '', displayName: '', isActive: true });
   const [newUser, setNewUser] = useState({ email: '', password: '', display_name: '', role: 'user' as Enums<'app_role'> });
 
   if (!isAdmin) return <Navigate to="/" replace />;
@@ -46,30 +48,29 @@ const UsersPage = () => {
     },
   });
 
+  const invalidateAll = () => {
+    queryClient.invalidateQueries({ queryKey: ['admin-profiles'] });
+    queryClient.invalidateQueries({ queryKey: ['admin-roles'] });
+  };
+
   const changeRole = useMutation({
     mutationFn: async ({ userId, role }: { userId: string; role: Enums<'app_role'> }) => {
       await supabase.from('user_roles').delete().eq('user_id', userId);
       const { error } = await supabase.from('user_roles').insert({ user_id: userId, role });
       if (error) throw error;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin-roles'] });
-      toast({ title: 'Role atualizada!' });
-    },
+    onSuccess: () => { invalidateAll(); toast({ title: 'Role atualizada!' }); },
     onError: (err: any) => toast({ title: 'Erro', description: err.message, variant: 'destructive' }),
   });
 
   const createUser = useMutation({
     mutationFn: async () => {
-      const { data, error } = await supabase.functions.invoke('create-user', {
-        body: newUser,
-      });
+      const { data, error } = await supabase.functions.invoke('create-user', { body: newUser });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin-profiles'] });
-      queryClient.invalidateQueries({ queryKey: ['admin-roles'] });
+      invalidateAll();
       setDialogOpen(false);
       setNewUser({ email: '', password: '', display_name: '', role: 'user' });
       toast({ title: 'Usuário criado com sucesso!' });
@@ -77,9 +78,35 @@ const UsersPage = () => {
     onError: (err: any) => toast({ title: 'Erro ao criar usuário', description: err.message, variant: 'destructive' }),
   });
 
-  const getUserRole = (userId: string) => {
-    return allRoles?.find(r => r.user_id === userId)?.role ?? 'user';
-  };
+  const deleteUser = useMutation({
+    mutationFn: async (userId: string) => {
+      const { data, error } = await supabase.functions.invoke('manage-user', {
+        body: { action: 'delete', user_id: userId },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+    },
+    onSuccess: () => { invalidateAll(); toast({ title: 'Usuário excluído!' }); },
+    onError: (err: any) => toast({ title: 'Erro ao excluir', description: err.message, variant: 'destructive' }),
+  });
+
+  const updateUser = useMutation({
+    mutationFn: async () => {
+      const { data, error } = await supabase.functions.invoke('manage-user', {
+        body: { action: 'update', user_id: editDialog.userId, display_name: editDialog.displayName, is_active: editDialog.isActive },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+    },
+    onSuccess: () => {
+      invalidateAll();
+      setEditDialog({ open: false, userId: '', displayName: '', isActive: true });
+      toast({ title: 'Usuário atualizado!' });
+    },
+    onError: (err: any) => toast({ title: 'Erro ao atualizar', description: err.message, variant: 'destructive' }),
+  });
+
+  const getUserRole = (userId: string) => allRoles?.find(r => r.user_id === userId)?.role ?? 'user';
 
   return (
     <div className="space-y-6">
@@ -132,6 +159,28 @@ const UsersPage = () => {
         </Dialog>
       </div>
 
+      {/* Edit Dialog */}
+      <Dialog open={editDialog.open} onOpenChange={open => !open && setEditDialog({ open: false, userId: '', displayName: '', isActive: true })}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="font-mono">Editar Usuário</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={e => { e.preventDefault(); updateUser.mutate(); }} className="space-y-4">
+            <div className="space-y-2">
+              <Label>Nome</Label>
+              <Input value={editDialog.displayName} onChange={e => setEditDialog({ ...editDialog, displayName: e.target.value })} required />
+            </div>
+            <div className="flex items-center gap-2">
+              <Label>Ativo</Label>
+              <input type="checkbox" checked={editDialog.isActive} onChange={e => setEditDialog({ ...editDialog, isActive: e.target.checked })} />
+            </div>
+            <Button type="submit" className="w-full" disabled={updateUser.isPending}>
+              {updateUser.isPending ? 'Salvando...' : 'Salvar'}
+            </Button>
+          </form>
+        </DialogContent>
+      </Dialog>
+
       <div className="space-y-2">
         {profiles?.map(profile => (
           <Card key={profile.id} className="noc-card">
@@ -147,7 +196,7 @@ const UsersPage = () => {
                   <p className="text-xs text-muted-foreground font-mono">{profile.user_id.slice(0, 8)}</p>
                 </div>
               </div>
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2">
                 <Badge variant={profile.is_active ? 'default' : 'secondary'}>
                   {profile.is_active ? 'Ativo' : 'Inativo'}
                 </Badge>
@@ -163,6 +212,36 @@ const UsersPage = () => {
                     <SelectItem value="user">Usuário</SelectItem>
                   </SelectContent>
                 </Select>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setEditDialog({ open: true, userId: profile.user_id, displayName: profile.display_name ?? '', isActive: profile.is_active })}
+                >
+                  <Pencil className="h-4 w-4" />
+                </Button>
+                {profile.user_id !== user?.id && (
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button variant="ghost" size="icon" className="text-destructive">
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Excluir usuário?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Esta ação é irreversível. O usuário <strong>{profile.display_name}</strong> será removido permanentemente.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                        <AlertDialogAction onClick={() => deleteUser.mutate(profile.user_id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                          Excluir
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                )}
               </div>
             </CardContent>
           </Card>
