@@ -646,9 +646,6 @@ export default function Infrastructure() {
                         <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openSSHTerminal(host)} title="Copiar SSH">
                           <Terminal className="h-3.5 w-3.5 text-primary" />
                         </Button>
-                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openPutty(host)} title="PuTTY">
-                          <MonitorSmartphone className="h-3.5 w-3.5 text-primary" />
-                        </Button>
                         <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openCredentials(host.id)} title="Minhas Credenciais">
                           <KeyRound className="h-3.5 w-3.5 text-primary" />
                         </Button>
