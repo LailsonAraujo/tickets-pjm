@@ -425,20 +425,6 @@ export default function Infrastructure() {
     });
   };
 
-  const openPutty = (host: Host) => {
-    const creds = getEffectiveCredentials(host);
-    const u = creds.username || 'root';
-    const port = host.port || 22;
-    const batContent = `@echo off\r\nstart "" putty.exe -ssh ${u}@${host.ip_address} -P ${port}\r\nexit`;
-    const blob = new Blob([batContent], { type: 'application/bat' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `connect_${host.name.replace(/[^a-zA-Z0-9]/g, '_')}.bat`;
-    a.click();
-    URL.revokeObjectURL(url);
-    toast.success('Arquivo .bat baixado — execute para abrir no PuTTY', { duration: 4000 });
-  };
 
   const handleDecryptPassword = (hostId: string) => {
     setDecryptKeyTarget(hostId);
