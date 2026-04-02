@@ -72,7 +72,7 @@ const Dashboard = () => {
   const { data: allNotes } = useQuery({
     queryKey: ['all-notes-ranking'],
     queryFn: async () => {
-      const { data } = await supabase.from('ticket_notes').select('author_id, time_spent_seconds');
+      const { data } = await supabase.from('ticket_notes').select('author_id, time_spent_seconds, created_at');
       return data ?? [];
     },
   });
@@ -80,7 +80,7 @@ const Dashboard = () => {
   const { data: closedTickets } = useQuery({
     queryKey: ['closed-tickets-ranking'],
     queryFn: async () => {
-      const { data } = await supabase.from('tickets').select('assigned_to').eq('status', 'concluido');
+      const { data } = await supabase.from('tickets').select('assigned_to, closed_at').eq('status', 'concluido');
       return data ?? [];
     },
   });
