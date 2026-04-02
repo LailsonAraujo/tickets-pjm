@@ -27,7 +27,9 @@ Deno.serve(async (req) => {
     const { data: isAdmin } = await adminClient.rpc("has_role", { _user_id: caller.id, _role: "admin" });
     if (!isAdmin) throw new Error("Only admins can manage users");
 
-    const { action, user_id, display_name, is_active } = await req.json();
+    const body = await req.json();
+    const { action, user_id, display_name, is_active } = body;
+    console.log("manage-user action:", action, "user_id:", user_id);
 
     if (action === "delete") {
       if (!user_id) throw new Error("Missing user_id");
