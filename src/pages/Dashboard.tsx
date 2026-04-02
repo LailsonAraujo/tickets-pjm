@@ -304,6 +304,22 @@ const Dashboard = () => {
       </Card>
 
       {/* Rankings */}
+      <div className="flex items-center justify-between">
+        <h2 className="text-lg font-bold font-mono">Rankings</h2>
+        <div className="flex gap-1">
+          {([['week', 'Semana'], ['month', 'Mês'], ['all', 'Todos']] as const).map(([key, label]) => (
+            <Button
+              key={key}
+              variant={rankingPeriod === key ? 'default' : 'outline'}
+              size="sm"
+              className="font-mono text-xs h-7 px-3"
+              onClick={() => setRankingPeriod(key)}
+            >
+              {label}
+            </Button>
+          ))}
+        </div>
+      </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Card className="noc-card">
           <CardHeader>
