@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { Ticket, Clock, CheckCircle, AlertTriangle, Zap, Activity, ExternalLink, Pencil, Plus, Trash2, Save } from 'lucide-react';
+import { Ticket, Clock, CheckCircle, AlertTriangle, Zap, Activity, ExternalLink, Pencil, Plus, Trash2, Save, Trophy, Timer } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 const statusColors: Record<string, string> = {
