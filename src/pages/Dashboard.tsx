@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
+import { subDays, startOfDay } from 'date-fns';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -29,6 +30,7 @@ const Dashboard = () => {
   const [newLink, setNewLink] = useState({ label: '', url: '' });
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState({ label: '', url: '' });
+  const [rankingPeriod, setRankingPeriod] = useState<'week' | 'month' | 'all'>('all');
 
   const { data: tickets } = useQuery({
     queryKey: ['tickets-summary'],
@@ -70,7 +72,7 @@ const Dashboard = () => {
   const { data: allNotes } = useQuery({
     queryKey: ['all-notes-ranking'],
     queryFn: async () => {
-      const { data } = await supabase.from('ticket_notes').select('author_id, time_spent_seconds');
+      const { data } = await supabase.from('ticket_notes').select('author_id, time_spent_seconds, created_at');
       return data ?? [];
     },
   });
@@ -78,7 +80,7 @@ const Dashboard = () => {
   const { data: closedTickets } = useQuery({
     queryKey: ['closed-tickets-ranking'],
     queryFn: async () => {
-      const { data } = await supabase.from('tickets').select('assigned_to').eq('status', 'concluido');
+      const { data } = await supabase.from('tickets').select('assigned_to, closed_at').eq('status', 'concluido');
       return data ?? [];
     },
   });
@@ -133,29 +135,37 @@ const Dashboard = () => {
     return `${h}h ${m.toString().padStart(2, '0')}m`;
   };
 
+  const periodCutoff = useMemo(() => {
+    if (rankingPeriod === 'week') return startOfDay(subDays(new Date(), 7)).toISOString();
+    if (rankingPeriod === 'month') return startOfDay(subDays(new Date(), 30)).toISOString();
+    return null;
+  }, [rankingPeriod]);
+
   // Ranking: hours by user
-  const hoursRanking = (() => {
+  const hoursRanking = useMemo(() => {
     if (!allNotes) return [];
+    const filtered = periodCutoff ? allNotes.filter(n => n.created_at >= periodCutoff) : allNotes;
     const map = new Map<string, number>();
-    allNotes.forEach(n => {
+    filtered.forEach(n => {
       map.set(n.author_id, (map.get(n.author_id) ?? 0) + (n.time_spent_seconds ?? 0));
     });
     return Array.from(map.entries())
       .map(([userId, seconds]) => ({ userId, seconds }))
       .sort((a, b) => b.seconds - a.seconds);
-  })();
+  }, [allNotes, periodCutoff]);
 
   // Ranking: closed tickets by user
-  const closedRanking = (() => {
+  const closedRanking = useMemo(() => {
     if (!closedTickets) return [];
+    const filtered = periodCutoff ? closedTickets.filter(t => t.closed_at && t.closed_at >= periodCutoff) : closedTickets;
     const map = new Map<string, number>();
-    closedTickets.forEach(t => {
+    filtered.forEach(t => {
       if (t.assigned_to) map.set(t.assigned_to, (map.get(t.assigned_to) ?? 0) + 1);
     });
     return Array.from(map.entries())
       .map(([userId, count]) => ({ userId, count }))
       .sort((a, b) => b.count - a.count);
-  })();
+  }, [closedTickets, periodCutoff]);
 
   const open = tickets?.filter(t => t.status === 'aberto').length ?? 0;
   const inProgress = tickets?.filter(t => t.status === 'em_andamento').length ?? 0;
@@ -294,6 +304,22 @@ const Dashboard = () => {
       </Card>
 
       {/* Rankings */}
+      <div className="flex items-center justify-between">
+        <h2 className="text-lg font-bold font-mono">Rankings</h2>
+        <div className="flex gap-1">
+          {([['week', 'Semana'], ['month', 'Mês'], ['all', 'Todos']] as const).map(([key, label]) => (
+            <Button
+              key={key}
+              variant={rankingPeriod === key ? 'default' : 'outline'}
+              size="sm"
+              className="font-mono text-xs h-7 px-3"
+              onClick={() => setRankingPeriod(key)}
+            >
+              {label}
+            </Button>
+          ))}
+        </div>
+      </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Card className="noc-card">
           <CardHeader>
