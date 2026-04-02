@@ -135,29 +135,37 @@ const Dashboard = () => {
     return `${h}h ${m.toString().padStart(2, '0')}m`;
   };
 
+  const periodCutoff = useMemo(() => {
+    if (rankingPeriod === 'week') return startOfDay(subDays(new Date(), 7)).toISOString();
+    if (rankingPeriod === 'month') return startOfDay(subDays(new Date(), 30)).toISOString();
+    return null;
+  }, [rankingPeriod]);
+
   // Ranking: hours by user
-  const hoursRanking = (() => {
+  const hoursRanking = useMemo(() => {
     if (!allNotes) return [];
+    const filtered = periodCutoff ? allNotes.filter(n => n.created_at >= periodCutoff) : allNotes;
     const map = new Map<string, number>();
-    allNotes.forEach(n => {
+    filtered.forEach(n => {
       map.set(n.author_id, (map.get(n.author_id) ?? 0) + (n.time_spent_seconds ?? 0));
     });
     return Array.from(map.entries())
       .map(([userId, seconds]) => ({ userId, seconds }))
       .sort((a, b) => b.seconds - a.seconds);
-  })();
+  }, [allNotes, periodCutoff]);
 
   // Ranking: closed tickets by user
-  const closedRanking = (() => {
+  const closedRanking = useMemo(() => {
     if (!closedTickets) return [];
+    const filtered = periodCutoff ? closedTickets.filter(t => t.closed_at && t.closed_at >= periodCutoff) : closedTickets;
     const map = new Map<string, number>();
-    closedTickets.forEach(t => {
+    filtered.forEach(t => {
       if (t.assigned_to) map.set(t.assigned_to, (map.get(t.assigned_to) ?? 0) + 1);
     });
     return Array.from(map.entries())
       .map(([userId, count]) => ({ userId, count }))
       .sort((a, b) => b.count - a.count);
-  })();
+  }, [closedTickets, periodCutoff]);
 
   const open = tickets?.filter(t => t.status === 'aberto').length ?? 0;
   const inProgress = tickets?.filter(t => t.status === 'em_andamento').length ?? 0;
