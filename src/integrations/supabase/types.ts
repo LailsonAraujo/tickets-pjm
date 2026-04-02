@@ -308,7 +308,7 @@ export type Database = {
       }
       ticket_notes: {
         Row: {
-          author_id: string
+          author_id: string | null
           created_at: string
           description: string
           id: string
@@ -321,7 +321,7 @@ export type Database = {
           what_was_done: string | null
         }
         Insert: {
-          author_id: string
+          author_id?: string | null
           created_at?: string
           description: string
           id?: string
@@ -334,7 +334,7 @@ export type Database = {
           what_was_done?: string | null
         }
         Update: {
-          author_id?: string
+          author_id?: string | null
           created_at?: string
           description?: string
           id?: string
@@ -362,7 +362,7 @@ export type Database = {
           category: Database["public"]["Enums"]["ticket_category"]
           closed_at: string | null
           created_at: string
-          created_by: string
+          created_by: string | null
           description: string | null
           id: string
           priority: Database["public"]["Enums"]["ticket_priority"]
@@ -375,7 +375,7 @@ export type Database = {
           category?: Database["public"]["Enums"]["ticket_category"]
           closed_at?: string | null
           created_at?: string
-          created_by: string
+          created_by?: string | null
           description?: string | null
           id?: string
           priority?: Database["public"]["Enums"]["ticket_priority"]
@@ -388,7 +388,7 @@ export type Database = {
           category?: Database["public"]["Enums"]["ticket_category"]
           closed_at?: string | null
           created_at?: string
-          created_by?: string
+          created_by?: string | null
           description?: string | null
           id?: string
           priority?: Database["public"]["Enums"]["ticket_priority"]
