@@ -122,6 +122,41 @@ const Dashboard = () => {
     onError: (err: any) => toast({ title: 'Erro', description: err.message, variant: 'destructive' }),
   });
 
+  const getDisplayName = (userId: string | null) => {
+    if (!userId) return 'Desconhecido';
+    return profiles?.find(p => p.user_id === userId)?.display_name ?? 'Desconhecido';
+  };
+
+  const formatHours = (seconds: number) => {
+    const h = Math.floor(seconds / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    return `${h}h ${m.toString().padStart(2, '0')}m`;
+  };
+
+  // Ranking: hours by user
+  const hoursRanking = (() => {
+    if (!allNotes) return [];
+    const map = new Map<string, number>();
+    allNotes.forEach(n => {
+      map.set(n.author_id, (map.get(n.author_id) ?? 0) + (n.time_spent_seconds ?? 0));
+    });
+    return Array.from(map.entries())
+      .map(([userId, seconds]) => ({ userId, seconds }))
+      .sort((a, b) => b.seconds - a.seconds);
+  })();
+
+  // Ranking: closed tickets by user
+  const closedRanking = (() => {
+    if (!closedTickets) return [];
+    const map = new Map<string, number>();
+    closedTickets.forEach(t => {
+      if (t.assigned_to) map.set(t.assigned_to, (map.get(t.assigned_to) ?? 0) + 1);
+    });
+    return Array.from(map.entries())
+      .map(([userId, count]) => ({ userId, count }))
+      .sort((a, b) => b.count - a.count);
+  })();
+
   const open = tickets?.filter(t => t.status === 'aberto').length ?? 0;
   const inProgress = tickets?.filter(t => t.status === 'em_andamento').length ?? 0;
   const completed = tickets?.filter(t => t.status === 'concluido').length ?? 0;
