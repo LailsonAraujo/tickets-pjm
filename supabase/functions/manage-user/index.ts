@@ -37,6 +37,7 @@ Deno.serve(async (req) => {
 
       // Delete from auth (cascades to profiles/roles via FK or trigger)
       const { error } = await adminClient.auth.admin.deleteUser(user_id);
+      console.log("deleteUser result:", error);
       if (error) throw error;
 
       // Clean up profiles and roles manually if no cascade
