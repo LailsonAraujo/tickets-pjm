@@ -293,6 +293,65 @@ const Dashboard = () => {
         </CardContent>
       </Card>
 
+      {/* Rankings */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <Card className="noc-card">
+          <CardHeader>
+            <CardTitle className="text-lg font-mono flex items-center gap-2">
+              <Timer className="h-5 w-5 text-primary" />
+              Ranking — Horas Trabalhadas
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {hoursRanking.length > 0 ? (
+              <div className="space-y-2">
+                {hoursRanking.map((entry, i) => (
+                  <div key={entry.userId} className="flex items-center justify-between p-3 rounded-sm bg-muted/50 border border-border">
+                    <div className="flex items-center gap-3">
+                      <span className={`text-sm font-bold font-mono ${i === 0 ? 'text-yellow-500' : i === 1 ? 'text-gray-400' : i === 2 ? 'text-amber-700' : 'text-muted-foreground'}`}>
+                        #{i + 1}
+                      </span>
+                      <span className="text-sm font-mono">{getDisplayName(entry.userId)}</span>
+                    </div>
+                    <Badge variant="outline" className="font-mono">{formatHours(entry.seconds)}</Badge>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-muted-foreground text-sm text-center py-4 font-mono">// sem dados</p>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card className="noc-card">
+          <CardHeader>
+            <CardTitle className="text-lg font-mono flex items-center gap-2">
+              <Trophy className="h-5 w-5 text-primary" />
+              Ranking — Tickets Fechados
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {closedRanking.length > 0 ? (
+              <div className="space-y-2">
+                {closedRanking.map((entry, i) => (
+                  <div key={entry.userId} className="flex items-center justify-between p-3 rounded-sm bg-muted/50 border border-border">
+                    <div className="flex items-center gap-3">
+                      <span className={`text-sm font-bold font-mono ${i === 0 ? 'text-yellow-500' : i === 1 ? 'text-gray-400' : i === 2 ? 'text-amber-700' : 'text-muted-foreground'}`}>
+                        #{i + 1}
+                      </span>
+                      <span className="text-sm font-mono">{getDisplayName(entry.userId)}</span>
+                    </div>
+                    <Badge variant="outline" className="font-mono">{entry.count} ticket{entry.count !== 1 ? 's' : ''}</Badge>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-muted-foreground text-sm text-center py-4 font-mono">// sem dados</p>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
       {/* Recent tickets */}
       <Card className="noc-card">
         <CardHeader>
