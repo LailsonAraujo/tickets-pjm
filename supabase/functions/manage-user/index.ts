@@ -33,13 +33,9 @@ Deno.serve(async (req) => {
       if (!user_id) throw new Error("Missing user_id");
       if (user_id === caller.id) throw new Error("Cannot delete yourself");
 
-      // Delete from auth (cascades to profiles/roles via FK or trigger)
+      // FK constraints with ON DELETE SET NULL/CASCADE handle cleanup automatically
       const { error } = await adminClient.auth.admin.deleteUser(user_id);
       if (error) throw error;
-
-      // Clean up profiles and roles manually if no cascade
-      await adminClient.from("user_roles").delete().eq("user_id", user_id);
-      await adminClient.from("profiles").delete().eq("user_id", user_id);
 
       return new Response(JSON.stringify({ success: true }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -63,6 +59,7 @@ Deno.serve(async (req) => {
 
     throw new Error("Invalid action");
   } catch (error: any) {
+    console.error("manage-user error:", error.message);
     return new Response(JSON.stringify({ error: error.message }), {
       status: 400,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
