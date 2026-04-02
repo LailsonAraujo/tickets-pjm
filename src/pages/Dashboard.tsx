@@ -59,6 +59,30 @@ const Dashboard = () => {
     refetchInterval: 10000,
   });
 
+  const { data: profiles } = useQuery({
+    queryKey: ['profiles-list'],
+    queryFn: async () => {
+      const { data } = await supabase.from('profiles').select('user_id, display_name').eq('is_active', true);
+      return data ?? [];
+    },
+  });
+
+  const { data: allNotes } = useQuery({
+    queryKey: ['all-notes-ranking'],
+    queryFn: async () => {
+      const { data } = await supabase.from('ticket_notes').select('author_id, time_spent_seconds');
+      return data ?? [];
+    },
+  });
+
+  const { data: closedTickets } = useQuery({
+    queryKey: ['closed-tickets-ranking'],
+    queryFn: async () => {
+      const { data } = await supabase.from('tickets').select('assigned_to').eq('status', 'concluido');
+      return data ?? [];
+    },
+  });
+
   const addLink = useMutation({
     mutationFn: async () => {
       const maxOrder = quickLinks?.length ? Math.max(...quickLinks.map((l: any) => l.sort_order)) + 1 : 1;
