@@ -30,6 +30,7 @@ const Dashboard = () => {
   const [newLink, setNewLink] = useState({ label: '', url: '' });
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState({ label: '', url: '' });
+  const [rankingPeriod, setRankingPeriod] = useState<'week' | 'month' | 'all'>('all');
 
   const { data: tickets } = useQuery({
     queryKey: ['tickets-summary'],
