@@ -1,8 +1,8 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -10,9 +10,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
 import { useToast } from '@/hooks/use-toast';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Search, Ticket as TicketIcon } from 'lucide-react';
+import { Plus, Search, Ticket as TicketIcon, Filter, CalendarIcon, X } from 'lucide-react';
+import { format, startOfDay, endOfDay } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
+import { cn } from '@/lib/utils';
 import type { Enums } from '@/integrations/supabase/types';
 
 const statusColors: Record<string, string> = {
@@ -30,15 +35,46 @@ const priorityColors: Record<string, string> = {
   critica: 'bg-destructive/20 text-destructive',
 };
 
+const statusLabels: Record<string, string> = {
+  aberto: 'Abertos',
+  em_andamento: 'Em Andamento',
+  aguardando: 'Aguardando',
+  concluido: 'Concluídos',
+  cancelado: 'Cancelados',
+};
+
+const priorityLabels: Record<string, string> = {
+  baixa: 'Baixa',
+  media: 'Média',
+  alta: 'Alta',
+  critica: 'Crítica',
+};
+
+const categoryLabels: Record<string, string> = {
+  provisionamento: 'Provisionamento',
+  manutencao: 'Manutenção',
+  incidente: 'Incidente',
+  solicitacao: 'Solicitação',
+  outros: 'Outros',
+};
+
 const Tickets = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+
+  // Search & filters
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [dialogOpen, setDialogOpen] = useState(false);
+  const [priorityFilter, setPriorityFilter] = useState<string>('all');
+  const [categoryFilter, setCategoryFilter] = useState<string>('all');
+  const [techFilter, setTechFilter] = useState<string>('all');
+  const [dateFrom, setDateFrom] = useState<Date | undefined>();
+  const [dateTo, setDateTo] = useState<Date | undefined>();
 
+  // Create dialog
+  const [dialogOpen, setDialogOpen] = useState(false);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [priority, setPriority] = useState<Enums<'ticket_priority'>>('media');
@@ -46,11 +82,9 @@ const Tickets = () => {
   const [assignedTo, setAssignedTo] = useState('');
 
   const { data: tickets, isLoading } = useQuery({
-    queryKey: ['tickets', statusFilter],
+    queryKey: ['tickets'],
     queryFn: async () => {
-      let query = supabase.from('tickets').select('*').order('created_at', { ascending: false });
-      if (statusFilter !== 'all') query = query.eq('status', statusFilter as Enums<'ticket_status'>);
-      const { data } = await query;
+      const { data } = await supabase.from('tickets').select('*').order('created_at', { ascending: false });
       return data ?? [];
     },
   });
@@ -66,28 +100,21 @@ const Tickets = () => {
   const createTicket = useMutation({
     mutationFn: async () => {
       const { data, error } = await supabase.from('tickets').insert({
-        title,
-        description,
-        priority,
-        category,
+        title, description, priority, category,
         assigned_to: assignedTo || null,
         created_by: user!.id,
       }).select('id').single();
       if (error) throw error;
 
-      // Get display names for the notification
       const creatorProfile = users?.find(u => u.user_id === user!.id);
       const assignedProfile = assignedTo ? users?.find(u => u.user_id === assignedTo) : null;
 
-      // Send Telegram notification (fire-and-forget)
       supabase.functions.invoke('telegram-notify', {
         body: {
-          ticket_title: title,
-          ticket_id: data.id,
+          ticket_title: title, ticket_id: data.id,
           assigned_to_name: assignedProfile?.display_name ?? null,
           created_by_name: creatorProfile?.display_name ?? user!.email ?? 'Desconhecido',
-          priority,
-          category,
+          priority, category,
         },
       }).catch(err => console.error('Telegram notify error:', err));
     },
@@ -95,19 +122,50 @@ const Tickets = () => {
       queryClient.invalidateQueries({ queryKey: ['tickets'] });
       toast({ title: 'Ticket criado com sucesso!' });
       setDialogOpen(false);
-      setTitle('');
-      setDescription('');
-      setPriority('media');
-      setCategory('outros');
-      setAssignedTo('');
+      setTitle(''); setDescription(''); setPriority('media'); setCategory('outros'); setAssignedTo('');
     },
     onError: (err: any) => toast({ title: 'Erro', description: err.message, variant: 'destructive' }),
   });
 
-  const filtered = tickets?.filter(t => 
-    (t as any).title?.toLowerCase().includes(search.toLowerCase()) ||
-    t.id.includes(search)
-  );
+  const activeFilterCount = useMemo(() => {
+    let count = 0;
+    if (statusFilter !== 'all') count++;
+    if (priorityFilter !== 'all') count++;
+    if (categoryFilter !== 'all') count++;
+    if (techFilter !== 'all') count++;
+    if (dateFrom) count++;
+    if (dateTo) count++;
+    return count;
+  }, [statusFilter, priorityFilter, categoryFilter, techFilter, dateFrom, dateTo]);
+
+  const clearFilters = () => {
+    setStatusFilter('all');
+    setPriorityFilter('all');
+    setCategoryFilter('all');
+    setTechFilter('all');
+    setDateFrom(undefined);
+    setDateTo(undefined);
+  };
+
+  const filtered = useMemo(() => {
+    return tickets?.filter(t => {
+      // Text search
+      if (search && !t.title.toLowerCase().includes(search.toLowerCase()) && !t.id.includes(search)) return false;
+      // Status
+      if (statusFilter !== 'all' && t.status !== statusFilter) return false;
+      // Priority
+      if (priorityFilter !== 'all' && t.priority !== priorityFilter) return false;
+      // Category
+      if (categoryFilter !== 'all' && t.category !== categoryFilter) return false;
+      // Tech
+      if (techFilter !== 'all' && t.assigned_to !== techFilter) return false;
+      // Date from
+      if (dateFrom && new Date(t.created_at) < startOfDay(dateFrom)) return false;
+      // Date to
+      if (dateTo && new Date(t.created_at) > endOfDay(dateTo)) return false;
+      return true;
+    });
+  }, [tickets, search, statusFilter, priorityFilter, categoryFilter, techFilter, dateFrom, dateTo]);
 
   return (
     <div className="space-y-6">
@@ -179,49 +237,136 @@ const Tickets = () => {
         </Dialog>
       </div>
 
+      {/* Search + Filter toggle */}
       <div className="flex items-center gap-4 flex-wrap">
         <div className="relative flex-1 min-w-[200px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar tickets..." className="pl-9" />
         </div>
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-[180px]"><SelectValue placeholder="Status" /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todos</SelectItem>
-            <SelectItem value="aberto">Abertos</SelectItem>
-            <SelectItem value="em_andamento">Em Andamento</SelectItem>
-            <SelectItem value="aguardando">Aguardando</SelectItem>
-            <SelectItem value="concluido">Concluídos</SelectItem>
-            <SelectItem value="cancelado">Cancelados</SelectItem>
-          </SelectContent>
-        </Select>
+      </div>
+
+      {/* Filters row */}
+      <div className="flex items-end gap-3 flex-wrap">
+        <div className="space-y-1">
+          <Label className="text-xs text-muted-foreground">Status</Label>
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="w-[150px] h-9 text-xs"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos</SelectItem>
+              {Object.entries(statusLabels).map(([k, v]) => (
+                <SelectItem key={k} value={k}>{v}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="space-y-1">
+          <Label className="text-xs text-muted-foreground">Prioridade</Label>
+          <Select value={priorityFilter} onValueChange={setPriorityFilter}>
+            <SelectTrigger className="w-[130px] h-9 text-xs"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todas</SelectItem>
+              {Object.entries(priorityLabels).map(([k, v]) => (
+                <SelectItem key={k} value={k}>{v}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="space-y-1">
+          <Label className="text-xs text-muted-foreground">Categoria</Label>
+          <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+            <SelectTrigger className="w-[150px] h-9 text-xs"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todas</SelectItem>
+              {Object.entries(categoryLabels).map(([k, v]) => (
+                <SelectItem key={k} value={k}>{v}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="space-y-1">
+          <Label className="text-xs text-muted-foreground">Técnico</Label>
+          <Select value={techFilter} onValueChange={setTechFilter}>
+            <SelectTrigger className="w-[160px] h-9 text-xs"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos</SelectItem>
+              {users?.map(u => (
+                <SelectItem key={u.user_id} value={u.user_id}>{u.display_name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="space-y-1">
+          <Label className="text-xs text-muted-foreground">De</Label>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="outline" className={cn("w-[130px] h-9 text-xs justify-start", !dateFrom && "text-muted-foreground")}>
+                <CalendarIcon className="mr-1 h-3 w-3" />
+                {dateFrom ? format(dateFrom, 'dd/MM/yyyy') : 'Início'}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <Calendar mode="single" selected={dateFrom} onSelect={setDateFrom} locale={ptBR} className="p-3 pointer-events-auto" />
+            </PopoverContent>
+          </Popover>
+        </div>
+
+        <div className="space-y-1">
+          <Label className="text-xs text-muted-foreground">Até</Label>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="outline" className={cn("w-[130px] h-9 text-xs justify-start", !dateTo && "text-muted-foreground")}>
+                <CalendarIcon className="mr-1 h-3 w-3" />
+                {dateTo ? format(dateTo, 'dd/MM/yyyy') : 'Fim'}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <Calendar mode="single" selected={dateTo} onSelect={setDateTo} locale={ptBR} className="p-3 pointer-events-auto" />
+            </PopoverContent>
+          </Popover>
+        </div>
+
+        {activeFilterCount > 0 && (
+          <Button variant="ghost" size="sm" onClick={clearFilters} className="h-9 text-xs gap-1 text-muted-foreground">
+            <X className="h-3 w-3" /> Limpar ({activeFilterCount})
+          </Button>
+        )}
       </div>
 
       {isLoading ? (
         <div className="text-center py-12 text-muted-foreground">Carregando...</div>
       ) : filtered && filtered.length > 0 ? (
         <div className="space-y-2">
+          <p className="text-xs text-muted-foreground">{filtered.length} ticket(s) encontrado(s)</p>
           {filtered.map((ticket: any) => {
             const creator = users?.find(u => u.user_id === ticket.created_by);
+            const assignee = users?.find(u => u.user_id === ticket.assigned_to);
             return (
-            <Card key={ticket.id} className="noc-card cursor-pointer hover:border-primary/30 transition-colors" onClick={() => navigate(`/tickets/${ticket.id}`)}>
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between flex-wrap gap-2">
-                  <div className="flex items-center gap-3 min-w-0">
-                    <TicketIcon className="h-4 w-4 text-primary shrink-0" />
-                    <div className="min-w-0">
-                      <p className="font-medium truncate">{ticket.title}</p>
-                      <p className="text-xs text-muted-foreground font-mono">#{ticket.id.slice(0, 8)} • {creator?.display_name ?? 'Desconhecido'}</p>
+              <Card key={ticket.id} className="noc-card cursor-pointer hover:border-primary/30 transition-colors" onClick={() => navigate(`/tickets/${ticket.id}`)}>
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between flex-wrap gap-2">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <TicketIcon className="h-4 w-4 text-primary shrink-0" />
+                      <div className="min-w-0">
+                        <p className="font-medium truncate">{ticket.title}</p>
+                        <p className="text-xs text-muted-foreground font-mono">
+                          #{ticket.id.slice(0, 8)} • {creator?.display_name ?? 'Desconhecido'}
+                          {assignee && <span> → {assignee.display_name}</span>}
+                          {' • '}{format(new Date(ticket.created_at), 'dd/MM/yy HH:mm')}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Badge variant="outline" className={statusColors[ticket.status]}>{ticket.status.replace('_', ' ')}</Badge>
+                      <Badge variant="outline" className={priorityColors[ticket.priority]}>{ticket.priority}</Badge>
+                      <Badge variant="outline">{ticket.category}</Badge>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Badge variant="outline" className={statusColors[ticket.status]}>{ticket.status.replace('_', ' ')}</Badge>
-                    <Badge variant="outline" className={priorityColors[ticket.priority]}>{ticket.priority}</Badge>
-                    <Badge variant="outline">{ticket.category}</Badge>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
             );
           })}
         </div>
