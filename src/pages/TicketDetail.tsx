@@ -119,7 +119,8 @@ const TicketDetail = () => {
       });
       if (error) throw error;
 
-      if (ticket && ticket.assigned_to !== user!.id) {
+      // Auto-assign only if no one is assigned
+      if (ticket && !ticket.assigned_to) {
         await supabase.from('tickets').update({ assigned_to: user!.id }).eq('id', id!);
       }
     },
@@ -203,10 +204,24 @@ const TicketDetail = () => {
         </CardHeader>
         <CardContent className="space-y-4">
           {ticket.description && <p className="text-sm">{ticket.description}</p>}
-          <div className="flex gap-2 flex-wrap">
+          <div className="flex gap-2 flex-wrap items-center">
             <Badge variant="outline">{ticket.priority}</Badge>
             <Badge variant="outline">{ticket.category}</Badge>
-            <Badge variant="outline">Resp: {getDisplayName(ticket.assigned_to)}</Badge>
+            {canEditTicket ? (
+              <Select value={ticket.assigned_to || 'none'} onValueChange={v => updateAssignee.mutate(v === 'none' ? null : v)}>
+                <SelectTrigger className="w-[200px] h-7 text-xs">
+                  <SelectValue placeholder="Atribuir técnico" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Não atribuído</SelectItem>
+                  {users?.map(u => (
+                    <SelectItem key={u.user_id} value={u.user_id}>{u.display_name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            ) : (
+              <Badge variant="outline">Resp: {getDisplayName(ticket.assigned_to)}</Badge>
+            )}
           </div>
         </CardContent>
       </Card>
