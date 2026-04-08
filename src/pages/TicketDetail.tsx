@@ -93,6 +93,17 @@ const TicketDetail = () => {
     },
   });
 
+  const updateAssignee = useMutation({
+    mutationFn: async (assignedTo: string | null) => {
+      const { error } = await supabase.from('tickets').update({ assigned_to: assignedTo }).eq('id', id!);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['ticket', id] });
+      toast({ title: 'Responsável atualizado!' });
+    },
+  });
+
   const addNote = useMutation({
     mutationFn: async () => {
       if (!newNote.description.trim() || !newNote.what_was_done?.trim()) {
