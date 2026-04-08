@@ -93,6 +93,17 @@ const TicketDetail = () => {
     },
   });
 
+  const updateAssignee = useMutation({
+    mutationFn: async (assignedTo: string | null) => {
+      const { error } = await supabase.from('tickets').update({ assigned_to: assignedTo }).eq('id', id!);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['ticket', id] });
+      toast({ title: 'Responsável atualizado!' });
+    },
+  });
+
   const addNote = useMutation({
     mutationFn: async () => {
       if (!newNote.description.trim() || !newNote.what_was_done?.trim()) {
@@ -108,7 +119,8 @@ const TicketDetail = () => {
       });
       if (error) throw error;
 
-      if (ticket && ticket.assigned_to !== user!.id) {
+      // Auto-assign only if no one is assigned
+      if (ticket && !ticket.assigned_to) {
         await supabase.from('tickets').update({ assigned_to: user!.id }).eq('id', id!);
       }
     },
@@ -192,10 +204,24 @@ const TicketDetail = () => {
         </CardHeader>
         <CardContent className="space-y-4">
           {ticket.description && <p className="text-sm">{ticket.description}</p>}
-          <div className="flex gap-2 flex-wrap">
+          <div className="flex gap-2 flex-wrap items-center">
             <Badge variant="outline">{ticket.priority}</Badge>
             <Badge variant="outline">{ticket.category}</Badge>
-            <Badge variant="outline">Resp: {getDisplayName(ticket.assigned_to)}</Badge>
+            {canEditTicket ? (
+              <Select value={ticket.assigned_to || 'none'} onValueChange={v => updateAssignee.mutate(v === 'none' ? null : v)}>
+                <SelectTrigger className="w-[200px] h-7 text-xs">
+                  <SelectValue placeholder="Atribuir técnico" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Não atribuído</SelectItem>
+                  {users?.map(u => (
+                    <SelectItem key={u.user_id} value={u.user_id}>{u.display_name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            ) : (
+              <Badge variant="outline">Resp: {getDisplayName(ticket.assigned_to)}</Badge>
+            )}
           </div>
         </CardContent>
       </Card>
@@ -220,9 +246,9 @@ const TicketDetail = () => {
                 </Button>
               </div>
             </div>
-            {ticket.assigned_to && ticket.assigned_to !== user?.id && (
-              <div className="p-2 rounded bg-warning/10 border border-warning/20">
-                <p className="text-xs font-mono text-warning">⚠ Este ticket será automaticamente transferido para você ao salvar a nota.</p>
+            {!ticket.assigned_to && (
+              <div className="p-2 rounded bg-info/10 border border-info/20">
+                <p className="text-xs font-mono text-info">ℹ Este ticket não possui responsável. Ao salvar a nota, ele será atribuído a você automaticamente.</p>
               </div>
             )}
             <div className="space-y-2">
