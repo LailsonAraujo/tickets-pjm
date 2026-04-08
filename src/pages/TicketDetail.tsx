@@ -246,9 +246,9 @@ const TicketDetail = () => {
                 </Button>
               </div>
             </div>
-            {ticket.assigned_to && ticket.assigned_to !== user?.id && (
-              <div className="p-2 rounded bg-warning/10 border border-warning/20">
-                <p className="text-xs font-mono text-warning">⚠ Este ticket será automaticamente transferido para você ao salvar a nota.</p>
+            {!ticket.assigned_to && (
+              <div className="p-2 rounded bg-info/10 border border-info/20">
+                <p className="text-xs font-mono text-info">ℹ Este ticket não possui responsável. Ao salvar a nota, ele será atribuído a você automaticamente.</p>
               </div>
             )}
             <div className="space-y-2">
