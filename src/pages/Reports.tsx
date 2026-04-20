@@ -155,19 +155,81 @@ const Reports = () => {
     seconds: metrics.reduce((s, m) => s + m.totalSeconds, 0),
   }), [metrics]);
 
-  const exportPDF = () => {
-    try {
-      const doc = new jsPDF();
-      doc.setFontSize(16);
-      doc.text('Relatório de Produtividade por Técnico', 14, 18);
-      doc.setFontSize(10);
-      doc.setTextColor(100);
-      doc.text(`Período: ${periodLabel}`, 14, 25);
-      doc.text(`Gerado em: ${format(new Date(), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}`, 14, 30);
+  const captureChart = async (el: HTMLElement | null) => {
+    if (!el) return null;
+    const canvas = await html2canvas(el, {
+      backgroundColor: '#0a0a0a',
+      scale: 2,
+      logging: false,
+      useCORS: true,
+    });
+    return canvas.toDataURL('image/png');
+  };
 
+  const addChartToPDF = (doc: jsPDF, img: string | null, title: string, startY: number): number => {
+    if (!img) return startY;
+    const pageW = doc.internal.pageSize.getWidth();
+    const pageH = doc.internal.pageSize.getHeight();
+    const imgW = pageW - 28;
+    const props = (doc as any).getImageProperties(img);
+    const imgH = (props.height * imgW) / props.width;
+    if (startY + imgH + 12 > pageH - 10) {
+      doc.addPage();
+      startY = 20;
+    }
+    doc.setFontSize(11);
+    doc.setTextColor(30);
+    doc.text(title, 14, startY);
+    doc.addImage(img, 'PNG', 14, startY + 4, imgW, imgH);
+    return startY + imgH + 12;
+  };
+
+  const exportPDF = async () => {
+    try {
+      setExporting(true);
+      // Wait a tick so any "exporting" UI changes apply (and charts stay mounted)
+      await new Promise(r => setTimeout(r, 50));
+
+      const [imgCompare, imgHours, imgPies, imgAvg] = await Promise.all([
+        captureChart(chartCompareRef.current),
+        captureChart(chartHoursRef.current),
+        captureChart(chartPiesRef.current),
+        captureChart(chartAvgRef.current),
+      ]);
+
+      const doc = new jsPDF('p', 'mm', 'a4');
+      const pageW = doc.internal.pageSize.getWidth();
+
+      // Cover / header
+      doc.setFillColor(15, 23, 42);
+      doc.rect(0, 0, pageW, 32, 'F');
+      doc.setTextColor(255);
+      doc.setFontSize(18);
+      doc.text('Relatório de Produtividade', 14, 15);
+      doc.setFontSize(11);
+      doc.text('NOC / Tech Support — PJM Net', 14, 23);
+      doc.setFontSize(9);
+      doc.setTextColor(200);
+      doc.text(`Período: ${periodLabel}`, 14, 29);
+      doc.text(`Gerado em: ${format(new Date(), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}`, pageW - 14, 29, { align: 'right' });
+
+      // KPIs
+      doc.setTextColor(0);
+      doc.setFontSize(12);
+      doc.text('Resumo geral', 14, 42);
       autoTable(doc, {
-        startY: 36,
-        head: [['Técnico', 'Atribuídos', 'Fechados', 'Em aberto', 'Horas', 'Tempo médio resolução']],
+        startY: 45,
+        head: [['Total atribuídos', 'Fechados', 'Em aberto', 'Horas totais', 'Técnicos ativos']],
+        body: [[totals.assigned, totals.closed, totals.open, formatDuration(totals.seconds), metrics.length]],
+        theme: 'grid',
+        styles: { fontSize: 10, halign: 'center' },
+        headStyles: { fillColor: [30, 41, 59], textColor: 255 },
+      });
+
+      // Main table
+      autoTable(doc, {
+        startY: (doc as any).lastAutoTable.finalY + 6,
+        head: [['Técnico', 'Atribuídos', 'Fechados', 'Em aberto', 'Horas', 'Tempo médio resolução', '% Fechados']],
         body: metrics.map(m => [
           m.display_name,
           m.assigned,
@@ -175,32 +237,85 @@ const Reports = () => {
           m.open,
           formatDuration(m.totalSeconds),
           formatDuration(m.avgResolutionSeconds),
+          m.assigned ? `${Math.round((m.closed / m.assigned) * 100)}%` : '—',
         ]),
-        foot: [['TOTAL', totals.assigned, totals.closed, totals.open, formatDuration(totals.seconds), '']],
+        foot: [['TOTAL', totals.assigned, totals.closed, totals.open, formatDuration(totals.seconds), '', totals.assigned ? `${Math.round((totals.closed / totals.assigned) * 100)}%` : '—']],
         styles: { fontSize: 9 },
         headStyles: { fillColor: [30, 41, 59] },
         footStyles: { fillColor: [30, 41, 59], textColor: 255 },
       });
 
-      let y = (doc as any).lastAutoTable.finalY + 10;
+      // Aggregated category / priority
+      const aggCat: Record<string, number> = {};
+      const aggPri: Record<string, number> = {};
       metrics.forEach(m => {
-        if (y > 250) { doc.addPage(); y = 20; }
+        Object.entries(m.byCategory).forEach(([k, v]) => { aggCat[k] = (aggCat[k] ?? 0) + v; });
+        Object.entries(m.byPriority).forEach(([k, v]) => { aggPri[k] = (aggPri[k] ?? 0) + v; });
+      });
+
+      autoTable(doc, {
+        startY: (doc as any).lastAutoTable.finalY + 6,
+        head: [['Distribuição agregada — Categoria', 'Qtd', '%']],
+        body: Object.entries(aggCat).map(([k, v]) => [k, v, totals.assigned ? `${Math.round((v / totals.assigned) * 100)}%` : '—']),
+        styles: { fontSize: 9 },
+        headStyles: { fillColor: [30, 41, 59] },
+      });
+
+      autoTable(doc, {
+        startY: (doc as any).lastAutoTable.finalY + 4,
+        head: [['Distribuição agregada — Prioridade', 'Qtd', '%']],
+        body: Object.entries(aggPri).map(([k, v]) => [k, v, totals.assigned ? `${Math.round((v / totals.assigned) * 100)}%` : '—']),
+        styles: { fontSize: 9 },
+        headStyles: { fillColor: [30, 41, 59] },
+      });
+
+      // Charts page(s)
+      doc.addPage();
+      let y = 20;
+      doc.setFontSize(14);
+      doc.setTextColor(0);
+      doc.text('Visão gráfica', 14, 14);
+      y = addChartToPDF(doc, imgCompare, 'Comparativo de tickets por técnico', y);
+      y = addChartToPDF(doc, imgHours, 'Horas trabalhadas por técnico', y);
+      y = addChartToPDF(doc, imgPies, 'Distribuição por categoria e prioridade', y);
+      y = addChartToPDF(doc, imgAvg, 'Tempo médio de resolução', y);
+
+      // Per-tech detail
+      doc.addPage();
+      doc.setFontSize(14);
+      doc.text('Detalhamento por técnico', 14, 16);
+      let dy = 24;
+      metrics.forEach(m => {
+        if (dy > 250) { doc.addPage(); dy = 20; }
         doc.setFontSize(11);
         doc.setTextColor(0);
-        doc.text(m.display_name, 14, y);
-        y += 5;
+        doc.text(m.display_name, 14, dy);
+        dy += 5;
         doc.setFontSize(8);
         doc.setTextColor(80);
+        doc.text(`Atribuídos: ${m.assigned}  |  Fechados: ${m.closed}  |  Em aberto: ${m.open}  |  Horas: ${formatDuration(m.totalSeconds)}  |  Tempo médio: ${formatDuration(m.avgResolutionSeconds)}`, 14, dy);
+        dy += 4;
         const cat = Object.entries(m.byCategory).map(([k, v]) => `${k}: ${v}`).join(' | ') || '—';
         const pri = Object.entries(m.byPriority).map(([k, v]) => `${k}: ${v}`).join(' | ') || '—';
-        doc.text(`Categorias → ${cat}`, 14, y); y += 4;
-        doc.text(`Prioridades → ${pri}`, 14, y); y += 8;
+        doc.text(`Categorias → ${cat}`, 14, dy); dy += 4;
+        doc.text(`Prioridades → ${pri}`, 14, dy); dy += 8;
       });
+
+      // Footer page numbers
+      const pages = doc.getNumberOfPages();
+      for (let i = 1; i <= pages; i++) {
+        doc.setPage(i);
+        doc.setFontSize(8);
+        doc.setTextColor(120);
+        doc.text(`Página ${i} de ${pages}`, pageW - 14, doc.internal.pageSize.getHeight() - 6, { align: 'right' });
+      }
 
       doc.save(`relatorio-tecnicos-${format(new Date(), 'yyyy-MM-dd')}.pdf`);
       toast({ title: 'PDF gerado com sucesso' });
     } catch (e: any) {
       toast({ title: 'Erro ao gerar PDF', description: e.message, variant: 'destructive' });
+    } finally {
+      setExporting(false);
     }
   };
 
