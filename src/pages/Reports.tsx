@@ -373,8 +373,8 @@ const Reports = () => {
           <p className="text-sm text-muted-foreground">{periodLabel}</p>
         </div>
         <div className="flex gap-2">
-          <Button onClick={exportPDF} variant="outline" className="gap-2">
-            <FileDown className="h-4 w-4" /> PDF
+          <Button onClick={exportPDF} variant="outline" className="gap-2" disabled={exporting}>
+            <FileDown className="h-4 w-4" /> {exporting ? 'Gerando...' : 'PDF'}
           </Button>
           <Button onClick={exportExcel} variant="outline" className="gap-2">
             <FileSpreadsheet className="h-4 w-4" /> Excel
