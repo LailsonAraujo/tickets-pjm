@@ -10,12 +10,25 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { CalendarIcon, FileDown, FileSpreadsheet, BarChart3 } from 'lucide-react';
+import { CalendarIcon, FileDown, FileSpreadsheet, BarChart3, PieChart as PieIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
+import {
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip as RTooltip,
+  Legend,
+  PieChart,
+  Pie,
+  Cell,
+} from 'recharts';
 
 type PeriodOption = 'week' | 'month' | 'custom' | 'all';
 
@@ -336,6 +349,106 @@ const Reports = () => {
           </Table>
         </CardContent>
       </Card>
+
+      {metrics.length > 0 && (
+        <>
+          <Card className="noc-card">
+            <CardHeader><CardTitle className="text-base flex items-center gap-2"><BarChart3 className="h-4 w-4 text-primary" />Comparativo de tickets por técnico</CardTitle></CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={320}>
+                <BarChart data={metrics.map(m => ({ name: m.display_name, Fechados: m.closed, 'Em aberto': m.open, Atribuídos: m.assigned }))}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                  <XAxis dataKey="name" stroke="hsl(var(--muted-foreground))" fontSize={11} angle={-15} textAnchor="end" height={60} />
+                  <YAxis stroke="hsl(var(--muted-foreground))" fontSize={11} allowDecimals={false} />
+                  <RTooltip contentStyle={{ background: 'hsl(var(--background))', border: '1px solid hsl(var(--border))', fontSize: 12 }} />
+                  <Legend wrapperStyle={{ fontSize: 12 }} />
+                  <Bar dataKey="Atribuídos" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="Fechados" fill="hsl(var(--success))" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="Em aberto" fill="hsl(var(--warning))" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+
+          <Card className="noc-card">
+            <CardHeader><CardTitle className="text-base flex items-center gap-2"><BarChart3 className="h-4 w-4 text-primary" />Horas trabalhadas por técnico</CardTitle></CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={280}>
+                <BarChart data={metrics.map(m => ({ name: m.display_name, Horas: +(m.totalSeconds / 3600).toFixed(2) }))} layout="vertical">
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                  <XAxis type="number" stroke="hsl(var(--muted-foreground))" fontSize={11} />
+                  <YAxis type="category" dataKey="name" stroke="hsl(var(--muted-foreground))" fontSize={11} width={120} />
+                  <RTooltip contentStyle={{ background: 'hsl(var(--background))', border: '1px solid hsl(var(--border))', fontSize: 12 }} formatter={(v: number) => [`${v}h`, 'Horas']} />
+                  <Bar dataKey="Horas" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+
+          {(() => {
+            const aggCat: Record<string, number> = {};
+            const aggPri: Record<string, number> = {};
+            metrics.forEach(m => {
+              Object.entries(m.byCategory).forEach(([k, v]) => { aggCat[k] = (aggCat[k] ?? 0) + v; });
+              Object.entries(m.byPriority).forEach(([k, v]) => { aggPri[k] = (aggPri[k] ?? 0) + v; });
+            });
+            const catData = Object.entries(aggCat).map(([name, value]) => ({ name, value }));
+            const priData = Object.entries(aggPri).map(([name, value]) => ({ name, value }));
+            const catColors = ['hsl(var(--primary))', 'hsl(var(--success))', 'hsl(var(--warning))', 'hsl(var(--destructive))', 'hsl(var(--muted-foreground))'];
+            const priColors: Record<string, string> = {
+              baixa: 'hsl(var(--muted-foreground))',
+              media: 'hsl(var(--primary))',
+              alta: 'hsl(var(--warning))',
+              critica: 'hsl(var(--destructive))',
+            };
+            return (
+              <div className="grid md:grid-cols-2 gap-4">
+                <Card className="noc-card">
+                  <CardHeader><CardTitle className="text-base flex items-center gap-2"><PieIcon className="h-4 w-4 text-primary" />Distribuição por categoria</CardTitle></CardHeader>
+                  <CardContent>
+                    <ResponsiveContainer width="100%" height={260}>
+                      <PieChart>
+                        <Pie data={catData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={90} label={(e: any) => `${e.name}: ${e.value}`} labelLine={false} fontSize={11}>
+                          {catData.map((_, i) => <Cell key={i} fill={catColors[i % catColors.length]} />)}
+                        </Pie>
+                        <RTooltip contentStyle={{ background: 'hsl(var(--background))', border: '1px solid hsl(var(--border))', fontSize: 12 }} />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </CardContent>
+                </Card>
+                <Card className="noc-card">
+                  <CardHeader><CardTitle className="text-base flex items-center gap-2"><PieIcon className="h-4 w-4 text-primary" />Distribuição por prioridade</CardTitle></CardHeader>
+                  <CardContent>
+                    <ResponsiveContainer width="100%" height={260}>
+                      <PieChart>
+                        <Pie data={priData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={90} label={(e: any) => `${e.name}: ${e.value}`} labelLine={false} fontSize={11}>
+                          {priData.map((d, i) => <Cell key={i} fill={priColors[d.name] ?? catColors[i % catColors.length]} />)}
+                        </Pie>
+                        <RTooltip contentStyle={{ background: 'hsl(var(--background))', border: '1px solid hsl(var(--border))', fontSize: 12 }} />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </CardContent>
+                </Card>
+              </div>
+            );
+          })()}
+
+          <Card className="noc-card">
+            <CardHeader><CardTitle className="text-base">Tempo médio de resolução (horas)</CardTitle></CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={260}>
+                <BarChart data={metrics.map(m => ({ name: m.display_name, Horas: +(m.avgResolutionSeconds / 3600).toFixed(2) }))}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                  <XAxis dataKey="name" stroke="hsl(var(--muted-foreground))" fontSize={11} angle={-15} textAnchor="end" height={60} />
+                  <YAxis stroke="hsl(var(--muted-foreground))" fontSize={11} />
+                  <RTooltip contentStyle={{ background: 'hsl(var(--background))', border: '1px solid hsl(var(--border))', fontSize: 12 }} formatter={(v: number) => [`${v}h`, 'Tempo médio']} />
+                  <Bar dataKey="Horas" fill="hsl(var(--accent))" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+        </>
+      )}
 
       <div className="grid md:grid-cols-2 gap-4">
         {metrics.map(m => (
