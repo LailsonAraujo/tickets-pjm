@@ -491,7 +491,7 @@ const Reports = () => {
             </CardContent>
           </Card>
 
-          <Card className="noc-card">
+          <Card className="noc-card" ref={chartHoursRef}>
             <CardHeader><CardTitle className="text-base flex items-center gap-2"><BarChart3 className="h-4 w-4 text-primary" />Horas trabalhadas por técnico</CardTitle></CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={280}>
@@ -523,7 +523,7 @@ const Reports = () => {
               critica: 'hsl(var(--destructive))',
             };
             return (
-              <div className="grid md:grid-cols-2 gap-4">
+              <div className="grid md:grid-cols-2 gap-4" ref={chartPiesRef}>
                 <Card className="noc-card">
                   <CardHeader><CardTitle className="text-base flex items-center gap-2"><PieIcon className="h-4 w-4 text-primary" />Distribuição por categoria</CardTitle></CardHeader>
                   <CardContent>
@@ -554,7 +554,7 @@ const Reports = () => {
             );
           })()}
 
-          <Card className="noc-card">
+          <Card className="noc-card" ref={chartAvgRef}>
             <CardHeader><CardTitle className="text-base">Tempo médio de resolução (horas)</CardTitle></CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={260}>
