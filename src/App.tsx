@@ -13,6 +13,7 @@ import Provisioning from "./pages/Provisioning";
 import UsersPage from "./pages/UsersPage";
 import Logs from "./pages/Logs";
 import Monitor from "./pages/Monitor";
+import Reports from "./pages/Reports";
 
 import NotFound from "./pages/NotFound";
 
@@ -42,6 +43,7 @@ function AppRoutes() {
         <Route path="/tickets/:id" element={<TicketDetail />} />
         <Route path="/provisioning" element={<Provisioning />} />
         <Route path="/monitor" element={<Monitor />} />
+        <Route path="/reports" element={<Reports />} />
         
         <Route path="/users" element={<UsersPage />} />
         <Route path="/logs" element={<Logs />} />
