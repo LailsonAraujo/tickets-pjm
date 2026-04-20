@@ -57,6 +57,11 @@ const Reports = () => {
   const [period, setPeriod] = useState<PeriodOption>('month');
   const [customFrom, setCustomFrom] = useState<Date | undefined>();
   const [customTo, setCustomTo] = useState<Date | undefined>();
+  const [exporting, setExporting] = useState(false);
+  const chartCompareRef = useRef<HTMLDivElement>(null);
+  const chartHoursRef = useRef<HTMLDivElement>(null);
+  const chartPiesRef = useRef<HTMLDivElement>(null);
+  const chartAvgRef = useRef<HTMLDivElement>(null);
 
   const { from, to } = useMemo(() => {
     const now = new Date();
