@@ -473,7 +473,7 @@ const Reports = () => {
 
       {metrics.length > 0 && (
         <>
-          <Card className="noc-card">
+          <Card className="noc-card" ref={chartCompareRef}>
             <CardHeader><CardTitle className="text-base flex items-center gap-2"><BarChart3 className="h-4 w-4 text-primary" />Comparativo de tickets por técnico</CardTitle></CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={320}>
