@@ -203,7 +203,7 @@ const TicketDetail = () => {
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
-          {ticket.description && <p className="text-sm">{ticket.description}</p>}
+          {ticket.description && <p className="text-sm whitespace-pre-wrap break-words">{ticket.description}</p>}
           <div className="flex gap-2 flex-wrap items-center">
             <Badge variant="outline">{ticket.priority}</Badge>
             <Badge variant="outline">{ticket.category}</Badge>
@@ -297,17 +297,17 @@ const TicketDetail = () => {
                   )}
                 </div>
               </div>
-              <p className="text-sm">{note.description}</p>
+              <p className="text-sm whitespace-pre-wrap break-words">{note.description}</p>
               {note.what_was_done && (
                 <div className="p-2 rounded bg-muted/50">
                   <p className="text-xs text-muted-foreground font-mono mb-1">O QUE FOI APLICADO:</p>
-                  <p className="text-sm">{note.what_was_done}</p>
+                  <p className="text-sm whitespace-pre-wrap break-words">{note.what_was_done}</p>
                 </div>
               )}
               {note.rollback_plan && (
                 <div className="p-2 rounded bg-warning/10">
                   <p className="text-xs text-warning font-mono mb-1">ROLLBACK:</p>
-                  <p className="text-sm">{note.rollback_plan}</p>
+                  <p className="text-sm whitespace-pre-wrap break-words">{note.rollback_plan}</p>
                 </div>
               )}
             </CardContent>
