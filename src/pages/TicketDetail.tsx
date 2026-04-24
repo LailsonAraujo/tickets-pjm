@@ -84,8 +84,21 @@ const TicketDetail = () => {
 
   const updateStatus = useMutation({
     mutationFn: async (status: Enums<'ticket_status'>) => {
+      const oldStatus = ticket?.status;
       const { error } = await supabase.from('tickets').update({ status, closed_at: status === 'concluido' ? new Date().toISOString() : null }).eq('id', id!);
       if (error) throw error;
+      if (ticket && oldStatus !== status) {
+        supabase.functions.invoke('telegram-notify-status', {
+          body: {
+            ticket_title: ticket.title,
+            ticket_id: ticket.id,
+            old_status: oldStatus,
+            new_status: status,
+            changed_by_name: getDisplayName(user?.id ?? null),
+            assigned_to_name: ticket.assigned_to ? getDisplayName(ticket.assigned_to) : null,
+          },
+        }).catch((err) => console.error('Telegram notify failed:', err));
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['ticket', id] });
