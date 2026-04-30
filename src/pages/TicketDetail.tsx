@@ -46,6 +46,14 @@ const TicketDetail = () => {
     },
   });
 
+  const { data: providers } = useQuery({
+    queryKey: ['providers'],
+    queryFn: async () => {
+      const { data } = await supabase.from('providers').select('id, name').order('name');
+      return data ?? [];
+    },
+  });
+
   const { data: ticket, isLoading: ticketLoading } = useQuery({
     queryKey: ['ticket', id],
     queryFn: async () => {
@@ -115,6 +123,18 @@ const TicketDetail = () => {
       queryClient.invalidateQueries({ queryKey: ['ticket', id] });
       toast({ title: 'Responsável atualizado!' });
     },
+  });
+
+  const updateProvider = useMutation({
+    mutationFn: async (providerId: string | null) => {
+      const { error } = await supabase.from('tickets').update({ provider_id: providerId }).eq('id', id!);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['ticket', id] });
+      toast({ title: 'Provedor atualizado!' });
+    },
+    onError: (e: any) => toast({ title: 'Erro', description: e.message, variant: 'destructive' }),
   });
 
   const addNote = useMutation({
@@ -234,6 +254,25 @@ const TicketDetail = () => {
               </Select>
             ) : (
               <Badge variant="outline">Resp: {getDisplayName(ticket.assigned_to)}</Badge>
+            )}
+            {isAdmin ? (
+              <Select value={ticket.provider_id || 'none'} onValueChange={v => updateProvider.mutate(v === 'none' ? null : v)}>
+                <SelectTrigger className="w-[180px] h-7 text-xs">
+                  <SelectValue placeholder="Provedor" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Sem provedor</SelectItem>
+                  {providers?.map(p => (
+                    <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            ) : (
+              ticket.provider_id && (
+                <Badge variant="outline" className="bg-primary/10 text-primary border-primary/30">
+                  {providers?.find(p => p.id === ticket.provider_id)?.name ?? '—'}
+                </Badge>
+              )
             )}
           </div>
         </CardContent>

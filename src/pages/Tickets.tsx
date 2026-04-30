@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -59,7 +59,7 @@ const categoryLabels: Record<string, string> = {
 };
 
 const Tickets = () => {
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -70,6 +70,7 @@ const Tickets = () => {
   const [priorityFilter, setPriorityFilter] = useState<string>('all');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [techFilter, setTechFilter] = useState<string>('all');
+  const [providerFilter, setProviderFilter] = useState<string>('all');
   const [dateFrom, setDateFrom] = useState<Date | undefined>();
   const [dateTo, setDateTo] = useState<Date | undefined>();
 
@@ -80,6 +81,7 @@ const Tickets = () => {
   const [priority, setPriority] = useState<Enums<'ticket_priority'>>('media');
   const [category, setCategory] = useState<Enums<'ticket_category'>>('outros');
   const [assignedTo, setAssignedTo] = useState('');
+  const [providerId, setProviderId] = useState<string>('');
 
   const { data: tickets, isLoading } = useQuery({
     queryKey: ['tickets'],
@@ -97,12 +99,47 @@ const Tickets = () => {
     },
   });
 
+  const { data: providers } = useQuery({
+    queryKey: ['providers'],
+    queryFn: async () => {
+      const { data } = await supabase.from('providers').select('id, name').order('name');
+      return data ?? [];
+    },
+  });
+
+  // Provedores aos quais o usuário atual pertence (para escolher no Novo Ticket)
+  const { data: myProviders } = useQuery({
+    queryKey: ['my-providers', user?.id],
+    queryFn: async () => {
+      if (!user) return [];
+      const { data } = await supabase.from('user_providers').select('provider_id').eq('user_id', user.id);
+      return data ?? [];
+    },
+    enabled: !!user,
+  });
+
+  const availableProviders = useMemo(() => {
+    if (!providers) return [];
+    if (isAdmin) return providers;
+    const ids = new Set(myProviders?.map(m => m.provider_id) ?? []);
+    return providers.filter(p => ids.has(p.id));
+  }, [providers, myProviders, isAdmin]);
+
+  // Auto-seleciona se houver apenas 1 provedor disponível
+  useEffect(() => {
+    if (dialogOpen && !providerId && availableProviders.length === 1) {
+      setProviderId(availableProviders[0].id);
+    }
+  }, [dialogOpen, providerId, availableProviders]);
+
   const createTicket = useMutation({
     mutationFn: async () => {
+      if (!providerId) throw new Error('Selecione um provedor');
       const { data, error } = await supabase.from('tickets').insert({
         title, description, priority, category,
         assigned_to: assignedTo || null,
         created_by: user!.id,
+        provider_id: providerId,
       }).select('id').single();
       if (error) throw error;
 
@@ -122,7 +159,7 @@ const Tickets = () => {
       queryClient.invalidateQueries({ queryKey: ['tickets'] });
       toast({ title: 'Ticket criado com sucesso!' });
       setDialogOpen(false);
-      setTitle(''); setDescription(''); setPriority('media'); setCategory('outros'); setAssignedTo('');
+      setTitle(''); setDescription(''); setPriority('media'); setCategory('outros'); setAssignedTo(''); setProviderId('');
     },
     onError: (err: any) => toast({ title: 'Erro', description: err.message, variant: 'destructive' }),
   });
@@ -133,39 +170,35 @@ const Tickets = () => {
     if (priorityFilter !== 'all') count++;
     if (categoryFilter !== 'all') count++;
     if (techFilter !== 'all') count++;
+    if (providerFilter !== 'all') count++;
     if (dateFrom) count++;
     if (dateTo) count++;
     return count;
-  }, [statusFilter, priorityFilter, categoryFilter, techFilter, dateFrom, dateTo]);
+  }, [statusFilter, priorityFilter, categoryFilter, techFilter, providerFilter, dateFrom, dateTo]);
 
   const clearFilters = () => {
     setStatusFilter('all');
     setPriorityFilter('all');
     setCategoryFilter('all');
     setTechFilter('all');
+    setProviderFilter('all');
     setDateFrom(undefined);
     setDateTo(undefined);
   };
 
   const filtered = useMemo(() => {
     return tickets?.filter(t => {
-      // Text search
       if (search && !t.title.toLowerCase().includes(search.toLowerCase()) && !t.id.includes(search)) return false;
-      // Status
       if (statusFilter !== 'all' && t.status !== statusFilter) return false;
-      // Priority
       if (priorityFilter !== 'all' && t.priority !== priorityFilter) return false;
-      // Category
       if (categoryFilter !== 'all' && t.category !== categoryFilter) return false;
-      // Tech
       if (techFilter !== 'all' && t.assigned_to !== techFilter) return false;
-      // Date from
+      if (providerFilter !== 'all' && t.provider_id !== providerFilter) return false;
       if (dateFrom && new Date(t.created_at) < startOfDay(dateFrom)) return false;
-      // Date to
       if (dateTo && new Date(t.created_at) > endOfDay(dateTo)) return false;
       return true;
     });
-  }, [tickets, search, statusFilter, priorityFilter, categoryFilter, techFilter, dateFrom, dateTo]);
+  }, [tickets, search, statusFilter, priorityFilter, categoryFilter, techFilter, providerFilter, dateFrom, dateTo]);
 
   return (
     <div className="space-y-6">
@@ -217,6 +250,20 @@ const Tickets = () => {
                     </SelectContent>
                   </Select>
                 </div>
+              </div>
+              <div className="space-y-2">
+                <Label>Provedor *</Label>
+                <Select value={providerId} onValueChange={setProviderId}>
+                  <SelectTrigger><SelectValue placeholder="Selecionar provedor" /></SelectTrigger>
+                  <SelectContent>
+                    {availableProviders.map(p => (
+                      <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {availableProviders.length === 0 && (
+                  <p className="text-xs text-destructive">Você não está vinculado a nenhum provedor. Contate um admin.</p>
+                )}
               </div>
               <div className="space-y-2">
                 <Label>Responsável</Label>
@@ -300,6 +347,19 @@ const Tickets = () => {
         </div>
 
         <div className="space-y-1">
+          <Label className="text-xs text-muted-foreground">Provedor</Label>
+          <Select value={providerFilter} onValueChange={setProviderFilter}>
+            <SelectTrigger className="w-[160px] h-9 text-xs"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos</SelectItem>
+              {availableProviders.map(p => (
+                <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="space-y-1">
           <Label className="text-xs text-muted-foreground">De</Label>
           <Popover>
             <PopoverTrigger asChild>
@@ -363,6 +423,11 @@ const Tickets = () => {
                       <Badge variant="outline" className={statusColors[ticket.status]}>{ticket.status.replace('_', ' ')}</Badge>
                       <Badge variant="outline" className={priorityColors[ticket.priority]}>{ticket.priority}</Badge>
                       <Badge variant="outline">{ticket.category}</Badge>
+                      {ticket.provider_id && (
+                        <Badge variant="outline" className="bg-primary/10 text-primary border-primary/30">
+                          {providers?.find(p => p.id === ticket.provider_id)?.name ?? '—'}
+                        </Badge>
+                      )}
                     </div>
                   </div>
                 </CardContent>

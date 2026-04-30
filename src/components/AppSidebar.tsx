@@ -1,4 +1,4 @@
-import { Terminal, LayoutDashboard, Ticket, Users, ScrollText, Zap, LogOut, Activity, BarChart3 } from 'lucide-react';
+import { Terminal, LayoutDashboard, Ticket, Users, ScrollText, Zap, LogOut, Activity, BarChart3, Building2 } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import { useAuth } from '@/contexts/AuthContext';
 import {
@@ -25,6 +25,7 @@ const mainItems = [
 const adminItems = [
   { title: 'Monitor', url: '/monitor', icon: Activity },
   { title: 'Relatórios', url: '/reports', icon: BarChart3 },
+  { title: 'Provedores', url: '/providers', icon: Building2 },
   { title: 'Usuários', url: '/users', icon: Users },
   { title: 'Logs', url: '/logs', icon: ScrollText },
 ];
