@@ -125,6 +125,18 @@ const TicketDetail = () => {
     },
   });
 
+  const updateProvider = useMutation({
+    mutationFn: async (providerId: string | null) => {
+      const { error } = await supabase.from('tickets').update({ provider_id: providerId }).eq('id', id!);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['ticket', id] });
+      toast({ title: 'Provedor atualizado!' });
+    },
+    onError: (e: any) => toast({ title: 'Erro', description: e.message, variant: 'destructive' }),
+  });
+
   const addNote = useMutation({
     mutationFn: async () => {
       if (!newNote.description.trim() || !newNote.what_was_done?.trim()) {
