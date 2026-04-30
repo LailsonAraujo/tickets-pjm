@@ -46,6 +46,14 @@ const TicketDetail = () => {
     },
   });
 
+  const { data: providers } = useQuery({
+    queryKey: ['providers'],
+    queryFn: async () => {
+      const { data } = await supabase.from('providers').select('id, name').order('name');
+      return data ?? [];
+    },
+  });
+
   const { data: ticket, isLoading: ticketLoading } = useQuery({
     queryKey: ['ticket', id],
     queryFn: async () => {
