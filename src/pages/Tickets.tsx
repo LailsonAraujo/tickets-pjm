@@ -125,10 +125,12 @@ const Tickets = () => {
     return providers.filter(p => ids.has(p.id));
   }, [providers, myProviders, isAdmin]);
 
-  // Auto-seleciona se houver apenas 1 provedor
-  if (!providerId && availableProviders.length === 1 && dialogOpen) {
-    setProviderId(availableProviders[0].id);
-  }
+  // Auto-seleciona se houver apenas 1 provedor disponível
+  useEffect(() => {
+    if (dialogOpen && !providerId && availableProviders.length === 1) {
+      setProviderId(availableProviders[0].id);
+    }
+  }, [dialogOpen, providerId, availableProviders]);
 
   const createTicket = useMutation({
     mutationFn: async () => {
