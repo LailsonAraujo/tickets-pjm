@@ -252,6 +252,20 @@ const Tickets = () => {
                 </div>
               </div>
               <div className="space-y-2">
+                <Label>Provedor *</Label>
+                <Select value={providerId} onValueChange={setProviderId}>
+                  <SelectTrigger><SelectValue placeholder="Selecionar provedor" /></SelectTrigger>
+                  <SelectContent>
+                    {availableProviders.map(p => (
+                      <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {availableProviders.length === 0 && (
+                  <p className="text-xs text-destructive">Você não está vinculado a nenhum provedor. Contate um admin.</p>
+                )}
+              </div>
+              <div className="space-y-2">
                 <Label>Responsável</Label>
                 <Select value={assignedTo} onValueChange={setAssignedTo}>
                   <SelectTrigger><SelectValue placeholder="Selecionar responsável" /></SelectTrigger>
