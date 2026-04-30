@@ -423,6 +423,11 @@ const Tickets = () => {
                       <Badge variant="outline" className={statusColors[ticket.status]}>{ticket.status.replace('_', ' ')}</Badge>
                       <Badge variant="outline" className={priorityColors[ticket.priority]}>{ticket.priority}</Badge>
                       <Badge variant="outline">{ticket.category}</Badge>
+                      {ticket.provider_id && (
+                        <Badge variant="outline" className="bg-primary/10 text-primary border-primary/30">
+                          {providers?.find(p => p.id === ticket.provider_id)?.name ?? '—'}
+                        </Badge>
+                      )}
                     </div>
                   </div>
                 </CardContent>
