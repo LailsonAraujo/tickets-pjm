@@ -255,6 +255,25 @@ const TicketDetail = () => {
             ) : (
               <Badge variant="outline">Resp: {getDisplayName(ticket.assigned_to)}</Badge>
             )}
+            {isAdmin ? (
+              <Select value={ticket.provider_id || 'none'} onValueChange={v => updateProvider.mutate(v === 'none' ? null : v)}>
+                <SelectTrigger className="w-[180px] h-7 text-xs">
+                  <SelectValue placeholder="Provedor" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Sem provedor</SelectItem>
+                  {providers?.map(p => (
+                    <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            ) : (
+              ticket.provider_id && (
+                <Badge variant="outline" className="bg-primary/10 text-primary border-primary/30">
+                  {providers?.find(p => p.id === ticket.provider_id)?.name ?? '—'}
+                </Badge>
+              )
+            )}
           </div>
         </CardContent>
       </Card>
