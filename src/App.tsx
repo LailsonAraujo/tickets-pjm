@@ -14,6 +14,7 @@ import UsersPage from "./pages/UsersPage";
 import Logs from "./pages/Logs";
 import Monitor from "./pages/Monitor";
 import Reports from "./pages/Reports";
+import Providers from "./pages/Providers";
 
 import NotFound from "./pages/NotFound";
 
