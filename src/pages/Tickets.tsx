@@ -347,6 +347,19 @@ const Tickets = () => {
         </div>
 
         <div className="space-y-1">
+          <Label className="text-xs text-muted-foreground">Provedor</Label>
+          <Select value={providerFilter} onValueChange={setProviderFilter}>
+            <SelectTrigger className="w-[160px] h-9 text-xs"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos</SelectItem>
+              {availableProviders.map(p => (
+                <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="space-y-1">
           <Label className="text-xs text-muted-foreground">De</Label>
           <Popover>
             <PopoverTrigger asChild>
