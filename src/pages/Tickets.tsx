@@ -59,7 +59,7 @@ const categoryLabels: Record<string, string> = {
 };
 
 const Tickets = () => {
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -70,6 +70,7 @@ const Tickets = () => {
   const [priorityFilter, setPriorityFilter] = useState<string>('all');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [techFilter, setTechFilter] = useState<string>('all');
+  const [providerFilter, setProviderFilter] = useState<string>('all');
   const [dateFrom, setDateFrom] = useState<Date | undefined>();
   const [dateTo, setDateTo] = useState<Date | undefined>();
 
@@ -80,6 +81,7 @@ const Tickets = () => {
   const [priority, setPriority] = useState<Enums<'ticket_priority'>>('media');
   const [category, setCategory] = useState<Enums<'ticket_category'>>('outros');
   const [assignedTo, setAssignedTo] = useState('');
+  const [providerId, setProviderId] = useState<string>('');
 
   const { data: tickets, isLoading } = useQuery({
     queryKey: ['tickets'],
@@ -97,12 +99,45 @@ const Tickets = () => {
     },
   });
 
+  const { data: providers } = useQuery({
+    queryKey: ['providers'],
+    queryFn: async () => {
+      const { data } = await supabase.from('providers').select('id, name').order('name');
+      return data ?? [];
+    },
+  });
+
+  // Provedores aos quais o usuário atual pertence (para escolher no Novo Ticket)
+  const { data: myProviders } = useQuery({
+    queryKey: ['my-providers', user?.id],
+    queryFn: async () => {
+      if (!user) return [];
+      const { data } = await supabase.from('user_providers').select('provider_id').eq('user_id', user.id);
+      return data ?? [];
+    },
+    enabled: !!user,
+  });
+
+  const availableProviders = useMemo(() => {
+    if (!providers) return [];
+    if (isAdmin) return providers;
+    const ids = new Set(myProviders?.map(m => m.provider_id) ?? []);
+    return providers.filter(p => ids.has(p.id));
+  }, [providers, myProviders, isAdmin]);
+
+  // Auto-seleciona se houver apenas 1 provedor
+  if (!providerId && availableProviders.length === 1 && dialogOpen) {
+    setProviderId(availableProviders[0].id);
+  }
+
   const createTicket = useMutation({
     mutationFn: async () => {
+      if (!providerId) throw new Error('Selecione um provedor');
       const { data, error } = await supabase.from('tickets').insert({
         title, description, priority, category,
         assigned_to: assignedTo || null,
         created_by: user!.id,
+        provider_id: providerId,
       }).select('id').single();
       if (error) throw error;
 
@@ -122,7 +157,7 @@ const Tickets = () => {
       queryClient.invalidateQueries({ queryKey: ['tickets'] });
       toast({ title: 'Ticket criado com sucesso!' });
       setDialogOpen(false);
-      setTitle(''); setDescription(''); setPriority('media'); setCategory('outros'); setAssignedTo('');
+      setTitle(''); setDescription(''); setPriority('media'); setCategory('outros'); setAssignedTo(''); setProviderId('');
     },
     onError: (err: any) => toast({ title: 'Erro', description: err.message, variant: 'destructive' }),
   });
