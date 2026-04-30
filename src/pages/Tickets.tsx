@@ -170,39 +170,35 @@ const Tickets = () => {
     if (priorityFilter !== 'all') count++;
     if (categoryFilter !== 'all') count++;
     if (techFilter !== 'all') count++;
+    if (providerFilter !== 'all') count++;
     if (dateFrom) count++;
     if (dateTo) count++;
     return count;
-  }, [statusFilter, priorityFilter, categoryFilter, techFilter, dateFrom, dateTo]);
+  }, [statusFilter, priorityFilter, categoryFilter, techFilter, providerFilter, dateFrom, dateTo]);
 
   const clearFilters = () => {
     setStatusFilter('all');
     setPriorityFilter('all');
     setCategoryFilter('all');
     setTechFilter('all');
+    setProviderFilter('all');
     setDateFrom(undefined);
     setDateTo(undefined);
   };
 
   const filtered = useMemo(() => {
     return tickets?.filter(t => {
-      // Text search
       if (search && !t.title.toLowerCase().includes(search.toLowerCase()) && !t.id.includes(search)) return false;
-      // Status
       if (statusFilter !== 'all' && t.status !== statusFilter) return false;
-      // Priority
       if (priorityFilter !== 'all' && t.priority !== priorityFilter) return false;
-      // Category
       if (categoryFilter !== 'all' && t.category !== categoryFilter) return false;
-      // Tech
       if (techFilter !== 'all' && t.assigned_to !== techFilter) return false;
-      // Date from
+      if (providerFilter !== 'all' && t.provider_id !== providerFilter) return false;
       if (dateFrom && new Date(t.created_at) < startOfDay(dateFrom)) return false;
-      // Date to
       if (dateTo && new Date(t.created_at) > endOfDay(dateTo)) return false;
       return true;
     });
-  }, [tickets, search, statusFilter, priorityFilter, categoryFilter, techFilter, dateFrom, dateTo]);
+  }, [tickets, search, statusFilter, priorityFilter, categoryFilter, techFilter, providerFilter, dateFrom, dateTo]);
 
   return (
     <div className="space-y-6">
