@@ -25,6 +25,7 @@ const mainItems = [
 const adminItems = [
   { title: 'Monitor', url: '/monitor', icon: Activity },
   { title: 'Relatórios', url: '/reports', icon: BarChart3 },
+  { title: 'Provedores', url: '/providers', icon: Building2 },
   { title: 'Usuários', url: '/users', icon: Users },
   { title: 'Logs', url: '/logs', icon: ScrollText },
 ];
