@@ -43,6 +43,18 @@ const Provisioning = () => {
     enabled: !!user,
   });
 
+  const { data: allProviders } = useQuery({
+    queryKey: ['providers'],
+    queryFn: async () => {
+      const { data } = await supabase.from('providers').select('id, name').order('name');
+      return data ?? [];
+    },
+  });
+
+  const availableProviders = isAdmin
+    ? (allProviders ?? [])
+    : (allProviders ?? []).filter(p => myProviders?.some(m => m.provider_id === p.id));
+
   const [providerId, setProviderId] = useState<string>('');
 
   const provision = useMutation({
