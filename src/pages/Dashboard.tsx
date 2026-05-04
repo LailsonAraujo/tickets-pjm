@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { Ticket, Clock, CheckCircle, AlertTriangle, Zap, Activity, ExternalLink, Pencil, Plus, Trash2, Save, Trophy, Timer } from 'lucide-react';
@@ -27,10 +28,18 @@ const Dashboard = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [editingLinks, setEditingLinks] = useState(false);
-  const [newLink, setNewLink] = useState({ label: '', url: '' });
+  const [newLink, setNewLink] = useState<{ label: string; url: string; provider_id: string }>({ label: '', url: '', provider_id: '' });
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [editForm, setEditForm] = useState({ label: '', url: '' });
+  const [editForm, setEditForm] = useState<{ label: string; url: string; provider_id: string }>({ label: '', url: '', provider_id: '' });
   const [rankingPeriod, setRankingPeriod] = useState<'week' | 'month' | 'all'>('all');
+
+  const { data: providers } = useQuery({
+    queryKey: ['providers'],
+    queryFn: async () => {
+      const { data } = await supabase.from('providers').select('id, name').order('name');
+      return data ?? [];
+    },
+  });
 
   const { data: tickets } = useQuery({
     queryKey: ['tickets-summary'],
@@ -88,20 +97,25 @@ const Dashboard = () => {
   const addLink = useMutation({
     mutationFn: async () => {
       const maxOrder = quickLinks?.length ? Math.max(...quickLinks.map((l: any) => l.sort_order)) + 1 : 1;
-      const { error } = await supabase.from('quick_links').insert({ label: newLink.label, url: newLink.url, sort_order: maxOrder });
+      const { error } = await supabase.from('quick_links').insert({
+        label: newLink.label,
+        url: newLink.url,
+        sort_order: maxOrder,
+        provider_id: newLink.provider_id || null,
+      });
       if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['quick-links'] });
-      setNewLink({ label: '', url: '' });
+      setNewLink({ label: '', url: '', provider_id: '' });
       toast({ title: 'Link adicionado!' });
     },
     onError: (err: any) => toast({ title: 'Erro', description: err.message, variant: 'destructive' }),
   });
 
   const updateLink = useMutation({
-    mutationFn: async ({ id, label, url }: { id: string; label: string; url: string }) => {
-      const { error } = await supabase.from('quick_links').update({ label, url }).eq('id', id);
+    mutationFn: async ({ id, label, url, provider_id }: { id: string; label: string; url: string; provider_id: string }) => {
+      const { error } = await supabase.from('quick_links').update({ label, url, provider_id: provider_id || null }).eq('id', id);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -244,14 +258,24 @@ const Dashboard = () => {
         <CardContent>
           {isAdmin && editingLinks && (
             <div className="mb-4 space-y-3">
-              <div className="flex items-end gap-2">
-                <div className="flex-1 space-y-1">
+              <div className="flex items-end gap-2 flex-wrap">
+                <div className="flex-1 min-w-[120px] space-y-1">
                   <Label className="text-xs font-mono">Nome</Label>
                   <Input value={newLink.label} onChange={e => setNewLink({ ...newLink, label: e.target.value })} placeholder="Nome do link" className="h-8 text-xs" />
                 </div>
-                <div className="flex-[2] space-y-1">
+                <div className="flex-[2] min-w-[180px] space-y-1">
                   <Label className="text-xs font-mono">URL</Label>
                   <Input value={newLink.url} onChange={e => setNewLink({ ...newLink, url: e.target.value })} placeholder="https://..." className="h-8 text-xs" />
+                </div>
+                <div className="w-[160px] space-y-1">
+                  <Label className="text-xs font-mono">Provedor</Label>
+                  <Select value={newLink.provider_id || 'global'} onValueChange={v => setNewLink({ ...newLink, provider_id: v === 'global' ? '' : v })}>
+                    <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="global">Todos (global)</SelectItem>
+                      {providers?.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <Button size="sm" onClick={() => addLink.mutate()} disabled={!newLink.label || !newLink.url} className="h-8 gap-1">
                   <Plus className="h-3 w-3" /> Adicionar
@@ -259,11 +283,18 @@ const Dashboard = () => {
               </div>
               <div className="space-y-1">
                 {quickLinks?.map((link: any) => (
-                  <div key={link.id} className="flex items-center gap-2 p-2 rounded bg-muted/30 border border-border">
+                  <div key={link.id} className="flex items-center gap-2 p-2 rounded bg-muted/30 border border-border flex-wrap">
                     {editingId === link.id ? (
                       <>
-                        <Input value={editForm.label} onChange={e => setEditForm({ ...editForm, label: e.target.value })} className="h-7 text-xs flex-1" />
-                        <Input value={editForm.url} onChange={e => setEditForm({ ...editForm, url: e.target.value })} className="h-7 text-xs flex-[2]" />
+                        <Input value={editForm.label} onChange={e => setEditForm({ ...editForm, label: e.target.value })} className="h-7 text-xs flex-1 min-w-[100px]" />
+                        <Input value={editForm.url} onChange={e => setEditForm({ ...editForm, url: e.target.value })} className="h-7 text-xs flex-[2] min-w-[160px]" />
+                        <Select value={editForm.provider_id || 'global'} onValueChange={v => setEditForm({ ...editForm, provider_id: v === 'global' ? '' : v })}>
+                          <SelectTrigger className="h-7 text-xs w-[140px]"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="global">Todos (global)</SelectItem>
+                            {providers?.map(p => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
                         <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => updateLink.mutate({ id: link.id, ...editForm })}>
                           <Save className="h-3 w-3" />
                         </Button>
@@ -273,7 +304,10 @@ const Dashboard = () => {
                       <>
                         <span className="text-xs font-mono flex-1 truncate">{link.label}</span>
                         <span className="text-xs text-muted-foreground flex-[2] truncate">{link.url}</span>
-                        <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => { setEditingId(link.id); setEditForm({ label: link.label, url: link.url }); }}>
+                        <Badge variant="outline" className="text-[10px] font-mono">
+                          {link.provider_id ? (providers?.find(p => p.id === link.provider_id)?.name ?? '—') : 'Global'}
+                        </Badge>
+                        <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => { setEditingId(link.id); setEditForm({ label: link.label, url: link.url, provider_id: link.provider_id ?? '' }); }}>
                           <Pencil className="h-3 w-3" />
                         </Button>
                         <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" onClick={() => deleteLink.mutate(link.id)}>

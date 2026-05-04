@@ -13,7 +13,7 @@ import { Zap, CheckCircle } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 
 const Provisioning = () => {
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -33,8 +33,34 @@ const Provisioning = () => {
     },
   });
 
+  const { data: myProviders } = useQuery({
+    queryKey: ['my-providers', user?.id],
+    queryFn: async () => {
+      if (!user) return [];
+      const { data } = await supabase.from('user_providers').select('provider_id').eq('user_id', user.id);
+      return data ?? [];
+    },
+    enabled: !!user,
+  });
+
+  const { data: allProviders } = useQuery({
+    queryKey: ['providers'],
+    queryFn: async () => {
+      const { data } = await supabase.from('providers').select('id, name').order('name');
+      return data ?? [];
+    },
+  });
+
+  const availableProviders = isAdmin
+    ? (allProviders ?? [])
+    : (allProviders ?? []).filter(p => myProviders?.some(m => m.provider_id === p.id));
+
+  const [providerId, setProviderId] = useState<string>('');
+
   const provision = useMutation({
     mutationFn: async () => {
+      const chosenProvider = providerId || myProviders?.[0]?.provider_id;
+      if (!chosenProvider) throw new Error('Você não está vinculado a nenhum provedor.');
       // Create ticket already completed
       const { data: ticket, error } = await supabase.from('tickets').insert({
         title: `Provisionamento ONU - ${cliente}`,
@@ -45,6 +71,7 @@ const Provisioning = () => {
         assigned_to: assignedTo || user!.id,
         created_by: user!.id,
         closed_at: new Date().toISOString(),
+        provider_id: chosenProvider,
       }).select('id').single();
       if (error) throw error;
 
@@ -128,7 +155,21 @@ const Provisioning = () => {
                   </SelectContent>
                 </Select>
               </div>
-              <Button type="submit" className="w-full gap-2" disabled={provision.isPending}>
+              <div className="space-y-2">
+                <Label>Provedor *</Label>
+                <Select value={providerId} onValueChange={setProviderId}>
+                  <SelectTrigger><SelectValue placeholder="Selecionar provedor" /></SelectTrigger>
+                  <SelectContent>
+                    {availableProviders.map(p => (
+                      <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {availableProviders.length === 0 && (
+                  <p className="text-xs text-destructive">Você não está vinculado a nenhum provedor.</p>
+                )}
+              </div>
+              <Button type="submit" className="w-full gap-2" disabled={provision.isPending || !providerId}>
                 <Zap className="h-4 w-4" />
                 {provision.isPending ? 'Provisionando...' : 'Provisionar ONU'}
               </Button>
