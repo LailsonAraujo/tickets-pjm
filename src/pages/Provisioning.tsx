@@ -155,7 +155,21 @@ const Provisioning = () => {
                   </SelectContent>
                 </Select>
               </div>
-              <Button type="submit" className="w-full gap-2" disabled={provision.isPending}>
+              <div className="space-y-2">
+                <Label>Provedor *</Label>
+                <Select value={providerId} onValueChange={setProviderId}>
+                  <SelectTrigger><SelectValue placeholder="Selecionar provedor" /></SelectTrigger>
+                  <SelectContent>
+                    {availableProviders.map(p => (
+                      <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {availableProviders.length === 0 && (
+                  <p className="text-xs text-destructive">Você não está vinculado a nenhum provedor.</p>
+                )}
+              </div>
+              <Button type="submit" className="w-full gap-2" disabled={provision.isPending || !providerId}>
                 <Zap className="h-4 w-4" />
                 {provision.isPending ? 'Provisionando...' : 'Provisionar ONU'}
               </Button>
