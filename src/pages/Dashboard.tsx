@@ -97,20 +97,25 @@ const Dashboard = () => {
   const addLink = useMutation({
     mutationFn: async () => {
       const maxOrder = quickLinks?.length ? Math.max(...quickLinks.map((l: any) => l.sort_order)) + 1 : 1;
-      const { error } = await supabase.from('quick_links').insert({ label: newLink.label, url: newLink.url, sort_order: maxOrder });
+      const { error } = await supabase.from('quick_links').insert({
+        label: newLink.label,
+        url: newLink.url,
+        sort_order: maxOrder,
+        provider_id: newLink.provider_id || null,
+      });
       if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['quick-links'] });
-      setNewLink({ label: '', url: '' });
+      setNewLink({ label: '', url: '', provider_id: '' });
       toast({ title: 'Link adicionado!' });
     },
     onError: (err: any) => toast({ title: 'Erro', description: err.message, variant: 'destructive' }),
   });
 
   const updateLink = useMutation({
-    mutationFn: async ({ id, label, url }: { id: string; label: string; url: string }) => {
-      const { error } = await supabase.from('quick_links').update({ label, url }).eq('id', id);
+    mutationFn: async ({ id, label, url, provider_id }: { id: string; label: string; url: string; provider_id: string }) => {
+      const { error } = await supabase.from('quick_links').update({ label, url, provider_id: provider_id || null }).eq('id', id);
       if (error) throw error;
     },
     onSuccess: () => {
