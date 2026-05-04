@@ -99,6 +99,15 @@ const Tickets = () => {
     },
   });
 
+  // Todos os vínculos user<->provider (visíveis a authenticated)
+  const { data: allUserProviders } = useQuery({
+    queryKey: ['all-user-providers'],
+    queryFn: async () => {
+      const { data } = await supabase.from('user_providers').select('user_id, provider_id');
+      return data ?? [];
+    },
+  });
+
   const { data: providers } = useQuery({
     queryKey: ['providers'],
     queryFn: async () => {
