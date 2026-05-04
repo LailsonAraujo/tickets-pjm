@@ -13,7 +13,7 @@ import { Zap, CheckCircle } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 
 const Provisioning = () => {
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
