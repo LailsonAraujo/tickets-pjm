@@ -308,6 +308,7 @@ export type Database = {
           created_at: string
           id: string
           label: string
+          provider_id: string | null
           sort_order: number
           updated_at: string
           url: string
@@ -316,6 +317,7 @@ export type Database = {
           created_at?: string
           id?: string
           label: string
+          provider_id?: string | null
           sort_order?: number
           updated_at?: string
           url: string
@@ -324,6 +326,7 @@ export type Database = {
           created_at?: string
           id?: string
           label?: string
+          provider_id?: string | null
           sort_order?: number
           updated_at?: string
           url?: string
@@ -390,7 +393,7 @@ export type Database = {
           description: string | null
           id: string
           priority: Database["public"]["Enums"]["ticket_priority"]
-          provider_id: string | null
+          provider_id: string
           status: Database["public"]["Enums"]["ticket_status"]
           title: string
           updated_at: string
@@ -404,7 +407,7 @@ export type Database = {
           description?: string | null
           id?: string
           priority?: Database["public"]["Enums"]["ticket_priority"]
-          provider_id?: string | null
+          provider_id: string
           status?: Database["public"]["Enums"]["ticket_status"]
           title: string
           updated_at?: string
@@ -418,7 +421,7 @@ export type Database = {
           description?: string | null
           id?: string
           priority?: Database["public"]["Enums"]["ticket_priority"]
-          provider_id?: string | null
+          provider_id?: string
           status?: Database["public"]["Enums"]["ticket_status"]
           title?: string
           updated_at?: string
