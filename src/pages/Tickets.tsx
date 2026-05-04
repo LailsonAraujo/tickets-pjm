@@ -294,7 +294,7 @@ const Tickets = () => {
                 <Select value={assignedTo} onValueChange={setAssignedTo}>
                   <SelectTrigger><SelectValue placeholder="Selecionar responsável" /></SelectTrigger>
                   <SelectContent>
-                    {users?.map(u => (
+                    {visibleUsers?.map(u => (
                       <SelectItem key={u.user_id} value={u.user_id}>{u.display_name}</SelectItem>
                     ))}
                   </SelectContent>
@@ -363,7 +363,7 @@ const Tickets = () => {
             <SelectTrigger className="w-[160px] h-9 text-xs"><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Todos</SelectItem>
-              {users?.map(u => (
+              {visibleUsers?.map(u => (
                 <SelectItem key={u.user_id} value={u.user_id}>{u.display_name}</SelectItem>
               ))}
             </SelectContent>
