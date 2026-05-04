@@ -134,6 +134,21 @@ const Tickets = () => {
     return providers.filter(p => ids.has(p.id));
   }, [providers, myProviders, isAdmin]);
 
+  // Usuários visíveis no seletor "Responsável" e no filtro "Técnico":
+  // Admin vê todos; demais veem apenas usuários que pertencem a algum provedor em comum.
+  const visibleUsers = useMemo(() => {
+    if (!users) return [];
+    if (isAdmin) return users;
+    const myIds = new Set(myProviders?.map(m => m.provider_id) ?? []);
+    if (myIds.size === 0) return [];
+    const allowed = new Set(
+      (allUserProviders ?? [])
+        .filter(up => myIds.has(up.provider_id))
+        .map(up => up.user_id)
+    );
+    return users.filter(u => allowed.has(u.user_id));
+  }, [users, allUserProviders, myProviders, isAdmin]);
+
   // Auto-seleciona se houver apenas 1 provedor disponível
   useEffect(() => {
     if (dialogOpen && !providerId && availableProviders.length === 1) {
