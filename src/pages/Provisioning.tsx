@@ -33,8 +33,22 @@ const Provisioning = () => {
     },
   });
 
+  const { data: myProviders } = useQuery({
+    queryKey: ['my-providers', user?.id],
+    queryFn: async () => {
+      if (!user) return [];
+      const { data } = await supabase.from('user_providers').select('provider_id').eq('user_id', user.id);
+      return data ?? [];
+    },
+    enabled: !!user,
+  });
+
+  const [providerId, setProviderId] = useState<string>('');
+
   const provision = useMutation({
     mutationFn: async () => {
+      const chosenProvider = providerId || myProviders?.[0]?.provider_id;
+      if (!chosenProvider) throw new Error('Você não está vinculado a nenhum provedor.');
       // Create ticket already completed
       const { data: ticket, error } = await supabase.from('tickets').insert({
         title: `Provisionamento ONU - ${cliente}`,
@@ -45,6 +59,7 @@ const Provisioning = () => {
         assigned_to: assignedTo || user!.id,
         created_by: user!.id,
         closed_at: new Date().toISOString(),
+        provider_id: chosenProvider,
       }).select('id').single();
       if (error) throw error;
 
