@@ -99,6 +99,15 @@ const Tickets = () => {
     },
   });
 
+  // Todos os vínculos user<->provider (visíveis a authenticated)
+  const { data: allUserProviders } = useQuery({
+    queryKey: ['all-user-providers'],
+    queryFn: async () => {
+      const { data } = await supabase.from('user_providers').select('user_id, provider_id');
+      return data ?? [];
+    },
+  });
+
   const { data: providers } = useQuery({
     queryKey: ['providers'],
     queryFn: async () => {
@@ -124,6 +133,21 @@ const Tickets = () => {
     const ids = new Set(myProviders?.map(m => m.provider_id) ?? []);
     return providers.filter(p => ids.has(p.id));
   }, [providers, myProviders, isAdmin]);
+
+  // Usuários visíveis no seletor "Responsável" e no filtro "Técnico":
+  // Admin vê todos; demais veem apenas usuários que pertencem a algum provedor em comum.
+  const visibleUsers = useMemo(() => {
+    if (!users) return [];
+    if (isAdmin) return users;
+    const myIds = new Set(myProviders?.map(m => m.provider_id) ?? []);
+    if (myIds.size === 0) return [];
+    const allowed = new Set(
+      (allUserProviders ?? [])
+        .filter(up => myIds.has(up.provider_id))
+        .map(up => up.user_id)
+    );
+    return users.filter(u => allowed.has(u.user_id));
+  }, [users, allUserProviders, myProviders, isAdmin]);
 
   // Auto-seleciona se houver apenas 1 provedor disponível
   useEffect(() => {
@@ -270,7 +294,7 @@ const Tickets = () => {
                 <Select value={assignedTo} onValueChange={setAssignedTo}>
                   <SelectTrigger><SelectValue placeholder="Selecionar responsável" /></SelectTrigger>
                   <SelectContent>
-                    {users?.map(u => (
+                    {visibleUsers?.map(u => (
                       <SelectItem key={u.user_id} value={u.user_id}>{u.display_name}</SelectItem>
                     ))}
                   </SelectContent>
@@ -339,7 +363,7 @@ const Tickets = () => {
             <SelectTrigger className="w-[160px] h-9 text-xs"><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Todos</SelectItem>
-              {users?.map(u => (
+              {visibleUsers?.map(u => (
                 <SelectItem key={u.user_id} value={u.user_id}>{u.display_name}</SelectItem>
               ))}
             </SelectContent>
