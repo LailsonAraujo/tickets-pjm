@@ -27,10 +27,18 @@ const Dashboard = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [editingLinks, setEditingLinks] = useState(false);
-  const [newLink, setNewLink] = useState({ label: '', url: '' });
+  const [newLink, setNewLink] = useState<{ label: string; url: string; provider_id: string }>({ label: '', url: '', provider_id: '' });
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [editForm, setEditForm] = useState({ label: '', url: '' });
+  const [editForm, setEditForm] = useState<{ label: string; url: string; provider_id: string }>({ label: '', url: '', provider_id: '' });
   const [rankingPeriod, setRankingPeriod] = useState<'week' | 'month' | 'all'>('all');
+
+  const { data: providers } = useQuery({
+    queryKey: ['providers'],
+    queryFn: async () => {
+      const { data } = await supabase.from('providers').select('id, name').order('name');
+      return data ?? [];
+    },
+  });
 
   const { data: tickets } = useQuery({
     queryKey: ['tickets-summary'],
