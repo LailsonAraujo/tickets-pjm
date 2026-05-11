@@ -196,6 +196,28 @@ const TicketDetail = () => {
     onError: (err: any) => toast({ title: 'Erro', description: err.message, variant: 'destructive' }),
   });
 
+  const updateNote = useMutation({
+    mutationFn: async () => {
+      if (!editingNoteId) return;
+      if (!editNote.description.trim() || !editNote.what_was_done.trim()) {
+        throw new Error('Descrição e "O que foi feito" são obrigatórios');
+      }
+      const { error } = await supabase.from('ticket_notes').update({
+        description: editNote.description,
+        what_was_done: editNote.what_was_done,
+        rollback_plan: editNote.rollback_plan || null,
+        edited_at: new Date().toISOString(),
+      }).eq('id', editingNoteId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['ticket-notes', id] });
+      setEditingNoteId(null);
+      toast({ title: 'Nota atualizada!' });
+    },
+    onError: (err: any) => toast({ title: 'Erro', description: err.message, variant: 'destructive' }),
+  });
+
   if (ticketLoading) return <div className="text-center py-12 text-muted-foreground">Carregando...</div>;
   if (!ticket) return <div className="text-center py-12 text-muted-foreground">Ticket não encontrado</div>;
 
