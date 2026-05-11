@@ -356,39 +356,94 @@ const TicketDetail = () => {
       )}
 
       <div className="space-y-3">
-        {notes?.map((note: any) => (
+        {notes?.map((note: any) => {
+          const canEditNote = isAdmin || note.author_id === user?.id;
+          const isEditing = editingNoteId === note.id;
+          return (
           <Card key={note.id} className="noc-card">
             <CardContent className="p-4 space-y-2">
-              <div className="flex items-center justify-between">
-                <p className="text-sm font-medium">{getDisplayName(note.author_id)}</p>
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <div className="flex items-center gap-2">
+                  <p className="text-sm font-medium">{getDisplayName(note.author_id)}</p>
+                  {note.edited_at && (
+                    <Badge variant="outline" className="text-[10px] font-mono h-5 px-1.5 border-warning/40 text-warning">
+                      editada
+                    </Badge>
+                  )}
+                </div>
                 <div className="flex items-center gap-2 text-xs text-muted-foreground">
                   <Clock className="h-3 w-3" />
                   <span className="font-mono">{formatTime(note.time_spent_seconds)}</span>
                   <span>•</span>
                   <span>{new Date(note.created_at).toLocaleString('pt-BR')}</span>
-                  {isAdmin && (
+                  {canEditNote && !isEditing && (
+                    <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => {
+                      setEditingNoteId(note.id);
+                      setEditNote({
+                        description: note.description ?? '',
+                        what_was_done: note.what_was_done ?? '',
+                        rollback_plan: note.rollback_plan ?? '',
+                      });
+                    }}>
+                      <Pencil className="h-3 w-3" />
+                    </Button>
+                  )}
+                  {isAdmin && !isEditing && (
                     <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive hover:text-destructive" onClick={() => setDeleteNoteId(note.id)}>
                       <Trash2 className="h-3 w-3" />
                     </Button>
                   )}
                 </div>
               </div>
-              <p className="text-sm whitespace-pre-wrap break-words">{note.description}</p>
-              {note.what_was_done && (
-                <div className="p-2 rounded bg-muted/50">
-                  <p className="text-xs text-muted-foreground font-mono mb-1">O QUE FOI APLICADO:</p>
-                  <p className="text-sm whitespace-pre-wrap break-words">{note.what_was_done}</p>
+              {isEditing ? (
+                <div className="space-y-3 pt-2">
+                  <div className="space-y-1">
+                    <Label className="text-xs">Descrição *</Label>
+                    <Textarea value={editNote.description} onChange={e => setEditNote({ ...editNote, description: e.target.value })} />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">O que foi aplicado *</Label>
+                    <Textarea value={editNote.what_was_done} onChange={e => setEditNote({ ...editNote, what_was_done: e.target.value })} />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Plano de Rollback</Label>
+                    <Textarea value={editNote.rollback_plan} onChange={e => setEditNote({ ...editNote, rollback_plan: e.target.value })} />
+                  </div>
+                  <div className="flex gap-2">
+                    <Button size="sm" onClick={() => updateNote.mutate()} disabled={updateNote.isPending} className="gap-2">
+                      <Save className="h-3 w-3" /> Salvar
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={() => setEditingNoteId(null)} className="gap-2">
+                      <X className="h-3 w-3" /> Cancelar
+                    </Button>
+                  </div>
                 </div>
-              )}
-              {note.rollback_plan && (
-                <div className="p-2 rounded bg-warning/10">
-                  <p className="text-xs text-warning font-mono mb-1">ROLLBACK:</p>
-                  <p className="text-sm whitespace-pre-wrap break-words">{note.rollback_plan}</p>
-                </div>
+              ) : (
+                <>
+                  <p className="text-sm whitespace-pre-wrap break-words">{note.description}</p>
+                  {note.what_was_done && (
+                    <div className="p-2 rounded bg-muted/50">
+                      <p className="text-xs text-muted-foreground font-mono mb-1">O QUE FOI APLICADO:</p>
+                      <p className="text-sm whitespace-pre-wrap break-words">{note.what_was_done}</p>
+                    </div>
+                  )}
+                  {note.rollback_plan && (
+                    <div className="p-2 rounded bg-warning/10">
+                      <p className="text-xs text-warning font-mono mb-1">ROLLBACK:</p>
+                      <p className="text-sm whitespace-pre-wrap break-words">{note.rollback_plan}</p>
+                    </div>
+                  )}
+                  {note.edited_at && (
+                    <p className="text-[10px] text-muted-foreground font-mono italic">
+                      última edição: {new Date(note.edited_at).toLocaleString('pt-BR')}
+                    </p>
+                  )}
+                </>
               )}
             </CardContent>
           </Card>
-        ))}
+          );
+        })}
         {notes?.length === 0 && (
           <p className="text-center text-muted-foreground text-sm py-8">Nenhuma nota registrada</p>
         )}
