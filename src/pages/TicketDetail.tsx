@@ -36,6 +36,8 @@ const TicketDetail = () => {
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const [deleteTicketOpen, setDeleteTicketOpen] = useState(false);
   const [deleteNoteId, setDeleteNoteId] = useState<string | null>(null);
+  const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
+  const [editNote, setEditNote] = useState({ description: '', what_was_done: '', rollback_plan: '' });
 
   // Fetch users for display name lookup
   const { data: users } = useQuery({
