@@ -1,0 +1,1 @@
+ALTER TABLE public.ticket_notes ADD COLUMN IF NOT EXISTS edited_at timestamp with time zone;
