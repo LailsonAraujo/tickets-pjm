@@ -338,6 +338,7 @@ export type Database = {
           author_id: string | null
           created_at: string
           description: string
+          edited_at: string | null
           id: string
           is_active: boolean
           rollback_plan: string | null
@@ -351,6 +352,7 @@ export type Database = {
           author_id?: string | null
           created_at?: string
           description: string
+          edited_at?: string | null
           id?: string
           is_active?: boolean
           rollback_plan?: string | null
@@ -364,6 +366,7 @@ export type Database = {
           author_id?: string | null
           created_at?: string
           description?: string
+          edited_at?: string | null
           id?: string
           is_active?: boolean
           rollback_plan?: string | null
