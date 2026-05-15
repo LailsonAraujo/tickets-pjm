@@ -388,7 +388,7 @@ const TicketDetail = () => {
               <Button onClick={() => addNote.mutate()} disabled={addNote.isPending} className="gap-2">
                 <Save className="h-4 w-4" /> Salvar Nota
               </Button>
-              <Button variant="outline" onClick={() => { setShowNoteForm(false); setTimerActive(false); setTimerSeconds(0); }}>Cancelar</Button>
+              <Button variant="outline" onClick={() => { setShowNoteForm(false); }}>Cancelar</Button>
             </div>
           </CardContent>
         </Card>
