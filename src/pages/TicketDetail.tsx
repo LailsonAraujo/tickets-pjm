@@ -14,6 +14,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { useToast } from '@/hooks/use-toast';
 import { ArrowLeft, Play, Pause, Clock, Plus, Save, Trash2, Pencil, X } from 'lucide-react';
 import type { Enums } from '@/integrations/supabase/types';
+import Attachments from '@/components/Attachments';
 
 function formatTime(seconds: number) {
   const h = Math.floor(seconds / 3600);
@@ -158,8 +159,20 @@ const TicketDetail = () => {
 
   const updateAssignee = useMutation({
     mutationFn: async (assignedTo: string | null) => {
+      const fromId = ticket?.assigned_to ?? null;
       const { error } = await supabase.from('tickets').update({ assigned_to: assignedTo }).eq('id', id!);
       if (error) throw error;
+      if (ticket && fromId !== assignedTo) {
+        supabase.functions.invoke('telegram-notify-transfer', {
+          body: {
+            ticket_title: ticket.title,
+            ticket_id: ticket.id,
+            from_name: fromId ? getDisplayName(fromId) : null,
+            to_name: assignedTo ? getDisplayName(assignedTo) : null,
+            changed_by_name: getDisplayName(user?.id ?? null),
+          },
+        }).catch((err) => console.error('Telegram transfer notify failed:', err));
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['ticket', id] });
@@ -338,6 +351,7 @@ const TicketDetail = () => {
               )
             )}
           </div>
+          <Attachments ticketId={ticket.id} />
         </CardContent>
       </Card>
 
@@ -477,6 +491,9 @@ const TicketDetail = () => {
                       última edição: {new Date(note.edited_at).toLocaleString('pt-BR')}
                     </p>
                   )}
+                  <div className="pt-2 border-t border-border/50">
+                    <Attachments ticketId={ticket.id} noteId={note.id} compact />
+                  </div>
                 </>
               )}
             </CardContent>
