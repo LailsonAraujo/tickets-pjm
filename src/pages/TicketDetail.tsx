@@ -14,6 +14,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { useToast } from '@/hooks/use-toast';
 import { ArrowLeft, Play, Pause, Clock, Plus, Save, Trash2, Pencil, X } from 'lucide-react';
 import type { Enums } from '@/integrations/supabase/types';
+import Attachments from '@/components/Attachments';
 
 function formatTime(seconds: number) {
   const h = Math.floor(seconds / 3600);
