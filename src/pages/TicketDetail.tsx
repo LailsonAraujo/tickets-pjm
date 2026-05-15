@@ -12,7 +12,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
-import { ArrowLeft, Play, Pause, Clock, Plus, Save, Trash2, Pencil, X } from 'lucide-react';
+import { ArrowLeft, Play, Pause, Clock, Plus, Save, Trash2, Pencil, X, CalendarClock } from 'lucide-react';
 import type { Enums } from '@/integrations/supabase/types';
 import Attachments from '@/components/Attachments';
 
