@@ -159,8 +159,20 @@ const TicketDetail = () => {
 
   const updateAssignee = useMutation({
     mutationFn: async (assignedTo: string | null) => {
+      const fromId = ticket?.assigned_to ?? null;
       const { error } = await supabase.from('tickets').update({ assigned_to: assignedTo }).eq('id', id!);
       if (error) throw error;
+      if (ticket && fromId !== assignedTo) {
+        supabase.functions.invoke('telegram-notify-transfer', {
+          body: {
+            ticket_title: ticket.title,
+            ticket_id: ticket.id,
+            from_name: fromId ? getDisplayName(fromId) : null,
+            to_name: assignedTo ? getDisplayName(assignedTo) : null,
+            changed_by_name: getDisplayName(user?.id ?? null),
+          },
+        }).catch((err) => console.error('Telegram transfer notify failed:', err));
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['ticket', id] });
