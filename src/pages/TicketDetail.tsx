@@ -491,6 +491,9 @@ const TicketDetail = () => {
                       última edição: {new Date(note.edited_at).toLocaleString('pt-BR')}
                     </p>
                   )}
+                  <div className="pt-2 border-t border-border/50">
+                    <Attachments ticketId={ticket.id} noteId={note.id} compact />
+                  </div>
                 </>
               )}
             </CardContent>
