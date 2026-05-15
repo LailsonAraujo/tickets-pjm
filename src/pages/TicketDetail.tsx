@@ -366,6 +366,48 @@ const TicketDetail = () => {
               )
             )}
           </div>
+          <div className="flex items-center gap-2 flex-wrap p-2 rounded border border-border bg-muted/20">
+            <CalendarClock className="h-4 w-4 text-primary" />
+            <span className="text-xs font-mono text-muted-foreground">AGENDAMENTO:</span>
+            {canEditTicket ? (
+              <>
+                <Input
+                  type="datetime-local"
+                  className="h-7 w-[220px] text-xs font-mono"
+                  value={
+                    ticket.scheduled_at
+                      ? new Date(new Date(ticket.scheduled_at).getTime() - new Date().getTimezoneOffset() * 60000)
+                          .toISOString()
+                          .slice(0, 16)
+                      : ''
+                  }
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    updateScheduledAt.mutate(v ? new Date(v).toISOString() : null);
+                  }}
+                />
+                {ticket.scheduled_at && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 px-2 text-xs"
+                    onClick={() => updateScheduledAt.mutate(null)}
+                  >
+                    <X className="h-3 w-3" /> limpar
+                  </Button>
+                )}
+              </>
+            ) : ticket.scheduled_at ? (
+              <span className="text-xs font-mono">{new Date(ticket.scheduled_at).toLocaleString('pt-BR')}</span>
+            ) : (
+              <span className="text-xs font-mono text-muted-foreground">// sem agendamento</span>
+            )}
+            {ticket.scheduled_at && new Date(ticket.scheduled_at) < new Date() && ticket.status !== 'concluido' && (
+              <Badge variant="outline" className="bg-destructive/10 text-destructive border-destructive/40 font-mono text-[10px]">
+                ATRASADO
+              </Badge>
+            )}
+          </div>
           <Attachments ticketId={ticket.id} />
         </CardContent>
       </Card>
