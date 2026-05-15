@@ -355,7 +355,7 @@ const TicketDetail = () => {
             <div className="flex items-center justify-between">
               <h3 className="font-mono text-sm font-medium">Nova Nota</h3>
               <div className="flex items-center gap-2">
-                <Button variant="outline" size="sm" onClick={() => { setTimerActive(!timerActive); }} className="gap-1 font-mono">
+                <Button variant="outline" size="sm" onClick={toggleTimer} className="gap-1 font-mono">
                   {timerActive ? <Pause className="h-3 w-3" /> : <Play className="h-3 w-3" />}
                   {formatTime(timerSeconds)}
                 </Button>
