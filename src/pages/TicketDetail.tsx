@@ -90,14 +90,40 @@ const TicketDetail = () => {
     enabled: !!id && !!user,
   });
 
+  // Load persisted timer when ticket/user changes
   useEffect(() => {
-    if (timerActive) {
-      timerRef.current = setInterval(() => setTimerSeconds(s => s + 1), 1000);
-    } else if (timerRef.current) {
-      clearInterval(timerRef.current);
-    }
-    return () => { if (timerRef.current) clearInterval(timerRef.current); };
+    setTimerState(loadTimer());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [timerStorageKey]);
+
+  // Tick every second only when running, to refresh display
+  useEffect(() => {
+    if (!timerActive) return;
+    const interval = setInterval(() => setTimerTick(t => t + 1), 1000);
+    return () => clearInterval(interval);
   }, [timerActive]);
+
+  const persistTimer = (next: { accumulated: number; startedAt: number | null }) => {
+    setTimerState(next);
+    if (!timerStorageKey) return;
+    if (next.accumulated === 0 && next.startedAt === null) {
+      localStorage.removeItem(timerStorageKey);
+    } else {
+      localStorage.setItem(timerStorageKey, JSON.stringify(next));
+    }
+  };
+
+  const toggleTimer = () => {
+    if (timerState.startedAt) {
+      // pause: fold elapsed into accumulated
+      const elapsed = Math.floor((Date.now() - timerState.startedAt) / 1000);
+      persistTimer({ accumulated: timerState.accumulated + elapsed, startedAt: null });
+    } else {
+      persistTimer({ accumulated: timerState.accumulated, startedAt: Date.now() });
+    }
+  };
+
+  const resetTimer = () => persistTimer({ accumulated: 0, startedAt: null });
 
   const getDisplayName = (userId: string | null) => {
     if (!userId) return 'Não atribuído';
