@@ -452,6 +452,18 @@ const Tickets = () => {
                           {providers?.find(p => p.id === ticket.provider_id)?.name ?? '—'}
                         </Badge>
                       )}
+                      {ticket.scheduled_at && (
+                        <Badge
+                          variant="outline"
+                          className={
+                            new Date(ticket.scheduled_at) < new Date() && ticket.status !== 'concluido'
+                              ? 'bg-destructive/10 text-destructive border-destructive/40 font-mono'
+                              : 'bg-warning/10 text-warning border-warning/40 font-mono'
+                          }
+                        >
+                          📅 {new Date(ticket.scheduled_at).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                        </Badge>
+                      )}
                     </div>
                   </div>
                 </CardContent>
