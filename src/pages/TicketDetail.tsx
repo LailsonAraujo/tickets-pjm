@@ -12,7 +12,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
-import { ArrowLeft, Play, Pause, Clock, Plus, Save, Trash2, Pencil, X } from 'lucide-react';
+import { ArrowLeft, Play, Pause, Clock, Plus, Save, Trash2, Pencil, X, CalendarClock } from 'lucide-react';
 import type { Enums } from '@/integrations/supabase/types';
 import Attachments from '@/components/Attachments';
 
@@ -192,6 +192,21 @@ const TicketDetail = () => {
     onError: (e: any) => toast({ title: 'Erro', description: e.message, variant: 'destructive' }),
   });
 
+  const updateScheduledAt = useMutation({
+    mutationFn: async (scheduledAt: string | null) => {
+      const { error } = await supabase
+        .from('tickets')
+        .update({ scheduled_at: scheduledAt })
+        .eq('id', id!);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['ticket', id] });
+      toast({ title: 'Agendamento atualizado!' });
+    },
+    onError: (e: any) => toast({ title: 'Erro', description: e.message, variant: 'destructive' }),
+  });
+
   const addNote = useMutation({
     mutationFn: async () => {
       if (!newNote.description.trim() || !newNote.what_was_done?.trim()) {
@@ -349,6 +364,48 @@ const TicketDetail = () => {
                   {providers?.find(p => p.id === ticket.provider_id)?.name ?? '—'}
                 </Badge>
               )
+            )}
+          </div>
+          <div className="flex items-center gap-2 flex-wrap p-2 rounded border border-border bg-muted/20">
+            <CalendarClock className="h-4 w-4 text-primary" />
+            <span className="text-xs font-mono text-muted-foreground">AGENDAMENTO:</span>
+            {canEditTicket ? (
+              <>
+                <Input
+                  type="datetime-local"
+                  className="h-7 w-[220px] text-xs font-mono"
+                  value={
+                    ticket.scheduled_at
+                      ? new Date(new Date(ticket.scheduled_at).getTime() - new Date().getTimezoneOffset() * 60000)
+                          .toISOString()
+                          .slice(0, 16)
+                      : ''
+                  }
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    updateScheduledAt.mutate(v ? new Date(v).toISOString() : null);
+                  }}
+                />
+                {ticket.scheduled_at && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 px-2 text-xs"
+                    onClick={() => updateScheduledAt.mutate(null)}
+                  >
+                    <X className="h-3 w-3" /> limpar
+                  </Button>
+                )}
+              </>
+            ) : ticket.scheduled_at ? (
+              <span className="text-xs font-mono">{new Date(ticket.scheduled_at).toLocaleString('pt-BR')}</span>
+            ) : (
+              <span className="text-xs font-mono text-muted-foreground">// sem agendamento</span>
+            )}
+            {ticket.scheduled_at && new Date(ticket.scheduled_at) < new Date() && ticket.status !== 'concluido' && (
+              <Badge variant="outline" className="bg-destructive/10 text-destructive border-destructive/40 font-mono text-[10px]">
+                ATRASADO
+              </Badge>
             )}
           </div>
           <Attachments ticketId={ticket.id} />
