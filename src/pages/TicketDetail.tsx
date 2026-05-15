@@ -31,9 +31,23 @@ const TicketDetail = () => {
 
   const [newNote, setNewNote] = useState({ description: '', what_was_done: '', rollback_plan: '', time_spent_seconds: 0 });
   const [showNoteForm, setShowNoteForm] = useState(false);
-  const [timerActive, setTimerActive] = useState(false);
-  const [timerSeconds, setTimerSeconds] = useState(0);
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const timerStorageKey = user && id ? `ticket-timer:${user.id}:${id}` : null;
+  const loadTimer = () => {
+    if (!timerStorageKey) return { accumulated: 0, startedAt: null as number | null };
+    try {
+      const raw = localStorage.getItem(timerStorageKey);
+      if (!raw) return { accumulated: 0, startedAt: null };
+      const parsed = JSON.parse(raw);
+      return { accumulated: parsed.accumulated ?? 0, startedAt: parsed.startedAt ?? null };
+    } catch {
+      return { accumulated: 0, startedAt: null };
+    }
+  };
+  const [timerState, setTimerState] = useState<{ accumulated: number; startedAt: number | null }>({ accumulated: 0, startedAt: null });
+  const [timerTick, setTimerTick] = useState(0);
+  const timerActive = timerState.startedAt !== null;
+  const timerSeconds = timerState.accumulated + (timerState.startedAt ? Math.floor((Date.now() - timerState.startedAt) / 1000) : 0);
+  void timerTick;
   const [deleteTicketOpen, setDeleteTicketOpen] = useState(false);
   const [deleteNoteId, setDeleteNoteId] = useState<string | null>(null);
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
@@ -76,14 +90,40 @@ const TicketDetail = () => {
     enabled: !!id && !!user,
   });
 
+  // Load persisted timer when ticket/user changes
   useEffect(() => {
-    if (timerActive) {
-      timerRef.current = setInterval(() => setTimerSeconds(s => s + 1), 1000);
-    } else if (timerRef.current) {
-      clearInterval(timerRef.current);
-    }
-    return () => { if (timerRef.current) clearInterval(timerRef.current); };
+    setTimerState(loadTimer());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [timerStorageKey]);
+
+  // Tick every second only when running, to refresh display
+  useEffect(() => {
+    if (!timerActive) return;
+    const interval = setInterval(() => setTimerTick(t => t + 1), 1000);
+    return () => clearInterval(interval);
   }, [timerActive]);
+
+  const persistTimer = (next: { accumulated: number; startedAt: number | null }) => {
+    setTimerState(next);
+    if (!timerStorageKey) return;
+    if (next.accumulated === 0 && next.startedAt === null) {
+      localStorage.removeItem(timerStorageKey);
+    } else {
+      localStorage.setItem(timerStorageKey, JSON.stringify(next));
+    }
+  };
+
+  const toggleTimer = () => {
+    if (timerState.startedAt) {
+      // pause: fold elapsed into accumulated
+      const elapsed = Math.floor((Date.now() - timerState.startedAt) / 1000);
+      persistTimer({ accumulated: timerState.accumulated + elapsed, startedAt: null });
+    } else {
+      persistTimer({ accumulated: timerState.accumulated, startedAt: Date.now() });
+    }
+  };
+
+  const resetTimer = () => persistTimer({ accumulated: 0, startedAt: null });
 
   const getDisplayName = (userId: string | null) => {
     if (!userId) return 'Não atribuído';
@@ -164,8 +204,7 @@ const TicketDetail = () => {
       queryClient.invalidateQueries({ queryKey: ['ticket', id] });
       setNewNote({ description: '', what_was_done: '', rollback_plan: '', time_spent_seconds: 0 });
       setShowNoteForm(false);
-      setTimerActive(false);
-      setTimerSeconds(0);
+      resetTimer();
       toast({ title: 'Nota adicionada!' });
     },
     onError: (err: any) => toast({ title: 'Erro', description: err.message, variant: 'destructive' }),
@@ -316,7 +355,7 @@ const TicketDetail = () => {
             <div className="flex items-center justify-between">
               <h3 className="font-mono text-sm font-medium">Nova Nota</h3>
               <div className="flex items-center gap-2">
-                <Button variant="outline" size="sm" onClick={() => { setTimerActive(!timerActive); }} className="gap-1 font-mono">
+                <Button variant="outline" size="sm" onClick={toggleTimer} className="gap-1 font-mono">
                   {timerActive ? <Pause className="h-3 w-3" /> : <Play className="h-3 w-3" />}
                   {formatTime(timerSeconds)}
                 </Button>
@@ -349,7 +388,7 @@ const TicketDetail = () => {
               <Button onClick={() => addNote.mutate()} disabled={addNote.isPending} className="gap-2">
                 <Save className="h-4 w-4" /> Salvar Nota
               </Button>
-              <Button variant="outline" onClick={() => { setShowNoteForm(false); setTimerActive(false); setTimerSeconds(0); }}>Cancelar</Button>
+              <Button variant="outline" onClick={() => { setShowNoteForm(false); }}>Cancelar</Button>
             </div>
           </CardContent>
         </Card>
