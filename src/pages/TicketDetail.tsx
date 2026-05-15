@@ -204,8 +204,7 @@ const TicketDetail = () => {
       queryClient.invalidateQueries({ queryKey: ['ticket', id] });
       setNewNote({ description: '', what_was_done: '', rollback_plan: '', time_spent_seconds: 0 });
       setShowNoteForm(false);
-      setTimerActive(false);
-      setTimerSeconds(0);
+      resetTimer();
       toast({ title: 'Nota adicionada!' });
     },
     onError: (err: any) => toast({ title: 'Erro', description: err.message, variant: 'destructive' }),
