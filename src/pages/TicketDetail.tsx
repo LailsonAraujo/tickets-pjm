@@ -351,6 +351,7 @@ const TicketDetail = () => {
               )
             )}
           </div>
+          <Attachments ticketId={ticket.id} />
         </CardContent>
       </Card>
 
