@@ -31,9 +31,23 @@ const TicketDetail = () => {
 
   const [newNote, setNewNote] = useState({ description: '', what_was_done: '', rollback_plan: '', time_spent_seconds: 0 });
   const [showNoteForm, setShowNoteForm] = useState(false);
-  const [timerActive, setTimerActive] = useState(false);
-  const [timerSeconds, setTimerSeconds] = useState(0);
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const timerStorageKey = user && id ? `ticket-timer:${user.id}:${id}` : null;
+  const loadTimer = () => {
+    if (!timerStorageKey) return { accumulated: 0, startedAt: null as number | null };
+    try {
+      const raw = localStorage.getItem(timerStorageKey);
+      if (!raw) return { accumulated: 0, startedAt: null };
+      const parsed = JSON.parse(raw);
+      return { accumulated: parsed.accumulated ?? 0, startedAt: parsed.startedAt ?? null };
+    } catch {
+      return { accumulated: 0, startedAt: null };
+    }
+  };
+  const [timerState, setTimerState] = useState<{ accumulated: number; startedAt: number | null }>({ accumulated: 0, startedAt: null });
+  const [timerTick, setTimerTick] = useState(0);
+  const timerActive = timerState.startedAt !== null;
+  const timerSeconds = timerState.accumulated + (timerState.startedAt ? Math.floor((Date.now() - timerState.startedAt) / 1000) : 0);
+  void timerTick;
   const [deleteTicketOpen, setDeleteTicketOpen] = useState(false);
   const [deleteNoteId, setDeleteNoteId] = useState<string | null>(null);
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
