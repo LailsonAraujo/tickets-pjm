@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
-import { Users as UsersIcon, Shield, Plus, Pencil, Trash2 } from 'lucide-react';
+import { Users as UsersIcon, Shield, Plus, Pencil, Trash2, KeyRound } from 'lucide-react';
 import { Navigate } from 'react-router-dom';
 import type { Enums } from '@/integrations/supabase/types';
 
