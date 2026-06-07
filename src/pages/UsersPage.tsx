@@ -235,6 +235,15 @@ const UsersPage = () => {
                 >
                   <Pencil className="h-4 w-4" />
                 </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  title="Redefinir senha"
+                  onClick={() => setPwdDialog({ open: true, userId: profile.user_id, userName: profile.display_name ?? '', password: '' })}
+                >
+                  <KeyRound className="h-4 w-4" />
+                </Button>
+                </Button>
                 {profile.user_id !== user?.id && (
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
