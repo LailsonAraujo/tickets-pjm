@@ -197,6 +197,25 @@ const UsersPage = () => {
         </DialogContent>
       </Dialog>
 
+      {/* Reset Password Dialog */}
+      <Dialog open={pwdDialog.open} onOpenChange={open => !open && setPwdDialog({ open: false, userId: '', userName: '', password: '' })}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="font-mono">Redefinir senha — {pwdDialog.userName}</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={e => { e.preventDefault(); resetPassword.mutate(); }} className="space-y-4">
+            <div className="space-y-2">
+              <Label>Nova senha *</Label>
+              <Input type="password" value={pwdDialog.password} onChange={e => setPwdDialog({ ...pwdDialog, password: e.target.value })} placeholder="Mínimo 6 caracteres" minLength={6} required />
+            </div>
+            <Button type="submit" className="w-full" disabled={resetPassword.isPending}>
+              {resetPassword.isPending ? 'Salvando...' : 'Redefinir Senha'}
+            </Button>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+
       <div className="space-y-2">
         {profiles?.map(profile => (
           <Card key={profile.id} className="noc-card">
