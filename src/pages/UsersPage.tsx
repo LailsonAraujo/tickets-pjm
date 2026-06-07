@@ -243,7 +243,6 @@ const UsersPage = () => {
                 >
                   <KeyRound className="h-4 w-4" />
                 </Button>
-                </Button>
                 {profile.user_id !== user?.id && (
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
