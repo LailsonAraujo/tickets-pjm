@@ -28,6 +28,7 @@ const UsersPage = () => {
   const queryClient = useQueryClient();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editDialog, setEditDialog] = useState<{ open: boolean; userId: string; displayName: string; isActive: boolean }>({ open: false, userId: '', displayName: '', isActive: true });
+  const [pwdDialog, setPwdDialog] = useState<{ open: boolean; userId: string; userName: string; password: string }>({ open: false, userId: '', userName: '', password: '' });
   const [newUser, setNewUser] = useState({ email: '', password: '', display_name: '', role: 'user' as Enums<'app_role'> });
 
   if (!isAdmin) return <Navigate to="/" replace />;
