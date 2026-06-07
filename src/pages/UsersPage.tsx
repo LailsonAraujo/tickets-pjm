@@ -107,6 +107,21 @@ const UsersPage = () => {
     onError: (err: any) => toast({ title: 'Erro ao atualizar', description: err.message, variant: 'destructive' }),
   });
 
+  const resetPassword = useMutation({
+    mutationFn: async () => {
+      const { data, error } = await supabase.functions.invoke('manage-user', {
+        body: { action: 'reset_password', user_id: pwdDialog.userId, password: pwdDialog.password },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+    },
+    onSuccess: () => {
+      setPwdDialog({ open: false, userId: '', userName: '', password: '' });
+      toast({ title: 'Senha redefinida com sucesso!' });
+    },
+    onError: (err: any) => toast({ title: 'Erro ao redefinir senha', description: err.message, variant: 'destructive' }),
+  });
+
   const getUserRole = (userId: string) => allRoles?.find(r => r.user_id === userId)?.role ?? 'user';
 
   return (
