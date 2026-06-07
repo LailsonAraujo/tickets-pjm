@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
-import { Users as UsersIcon, Shield, Plus, Pencil, Trash2 } from 'lucide-react';
+import { Users as UsersIcon, Shield, Plus, Pencil, Trash2, KeyRound } from 'lucide-react';
 import { Navigate } from 'react-router-dom';
 import type { Enums } from '@/integrations/supabase/types';
 
@@ -28,6 +28,7 @@ const UsersPage = () => {
   const queryClient = useQueryClient();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editDialog, setEditDialog] = useState<{ open: boolean; userId: string; displayName: string; isActive: boolean }>({ open: false, userId: '', displayName: '', isActive: true });
+  const [pwdDialog, setPwdDialog] = useState<{ open: boolean; userId: string; userName: string; password: string }>({ open: false, userId: '', userName: '', password: '' });
   const [newUser, setNewUser] = useState({ email: '', password: '', display_name: '', role: 'user' as Enums<'app_role'> });
 
   if (!isAdmin) return <Navigate to="/" replace />;
@@ -106,6 +107,21 @@ const UsersPage = () => {
     onError: (err: any) => toast({ title: 'Erro ao atualizar', description: err.message, variant: 'destructive' }),
   });
 
+  const resetPassword = useMutation({
+    mutationFn: async () => {
+      const { data, error } = await supabase.functions.invoke('manage-user', {
+        body: { action: 'reset_password', user_id: pwdDialog.userId, password: pwdDialog.password },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+    },
+    onSuccess: () => {
+      setPwdDialog({ open: false, userId: '', userName: '', password: '' });
+      toast({ title: 'Senha redefinida com sucesso!' });
+    },
+    onError: (err: any) => toast({ title: 'Erro ao redefinir senha', description: err.message, variant: 'destructive' }),
+  });
+
   const getUserRole = (userId: string) => allRoles?.find(r => r.user_id === userId)?.role ?? 'user';
 
   return (
@@ -181,6 +197,25 @@ const UsersPage = () => {
         </DialogContent>
       </Dialog>
 
+      {/* Reset Password Dialog */}
+      <Dialog open={pwdDialog.open} onOpenChange={open => !open && setPwdDialog({ open: false, userId: '', userName: '', password: '' })}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="font-mono">Redefinir senha — {pwdDialog.userName}</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={e => { e.preventDefault(); resetPassword.mutate(); }} className="space-y-4">
+            <div className="space-y-2">
+              <Label>Nova senha *</Label>
+              <Input type="password" value={pwdDialog.password} onChange={e => setPwdDialog({ ...pwdDialog, password: e.target.value })} placeholder="Mínimo 6 caracteres" minLength={6} required />
+            </div>
+            <Button type="submit" className="w-full" disabled={resetPassword.isPending}>
+              {resetPassword.isPending ? 'Salvando...' : 'Redefinir Senha'}
+            </Button>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+
       <div className="space-y-2">
         {profiles?.map(profile => (
           <Card key={profile.id} className="noc-card">
@@ -218,6 +253,14 @@ const UsersPage = () => {
                   onClick={() => setEditDialog({ open: true, userId: profile.user_id, displayName: profile.display_name ?? '', isActive: profile.is_active })}
                 >
                   <Pencil className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  title="Redefinir senha"
+                  onClick={() => setPwdDialog({ open: true, userId: profile.user_id, userName: profile.display_name ?? '', password: '' })}
+                >
+                  <KeyRound className="h-4 w-4" />
                 </Button>
                 {profile.user_id !== user?.id && (
                   <AlertDialog>

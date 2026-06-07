@@ -27,7 +27,17 @@ Deno.serve(async (req) => {
     const { data: isAdmin } = await adminClient.rpc("has_role", { _user_id: caller.id, _role: "admin" });
     if (!isAdmin) throw new Error("Only admins can manage users");
 
-    const { action, user_id, display_name, is_active } = await req.json();
+    const { action, user_id, display_name, is_active, password } = await req.json();
+
+    if (action === "reset_password") {
+      if (!user_id || !password) throw new Error("Missing user_id or password");
+      if (password.length < 6) throw new Error("Password must be at least 6 characters");
+      const { error } = await adminClient.auth.admin.updateUserById(user_id, { password });
+      if (error) throw error;
+      return new Response(JSON.stringify({ success: true }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     if (action === "delete") {
       if (!user_id) throw new Error("Missing user_id");
