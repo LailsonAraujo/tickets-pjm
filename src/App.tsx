@@ -14,6 +14,7 @@ import UsersPage from "./pages/UsersPage";
 import Logs from "./pages/Logs";
 import Monitor from "./pages/Monitor";
 import Reports from "./pages/Reports";
+import SsoConsume from "./pages/SsoConsume";
 import Providers from "./pages/Providers";
 
 import NotFound from "./pages/NotFound";
@@ -22,6 +23,15 @@ const queryClient = new QueryClient();
 
 function AppRoutes() {
   const { user, loading } = useAuth();
+
+  // Rota pública de consumo SSO — não pode ficar atrás do gate de auth.
+  if (typeof window !== "undefined" && window.location.pathname === "/sso/consume") {
+    return (
+      <Routes>
+        <Route path="/sso/consume" element={<SsoConsume />} />
+      </Routes>
+    );
+  }
 
   if (loading) {
     return (
