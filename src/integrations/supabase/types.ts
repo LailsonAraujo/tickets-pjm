@@ -333,6 +333,33 @@ export type Database = {
         }
         Relationships: []
       }
+      sso_jti_used: {
+        Row: {
+          consumed_at: string
+          email: string
+          expires_at: string
+          issued_at: string
+          jti: string
+          user_id: string
+        }
+        Insert: {
+          consumed_at?: string
+          email: string
+          expires_at: string
+          issued_at: string
+          jti: string
+          user_id: string
+        }
+        Update: {
+          consumed_at?: string
+          email?: string
+          expires_at?: string
+          issued_at?: string
+          jti?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       ticket_attachments: {
         Row: {
           created_at: string
