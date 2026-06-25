@@ -1,4 +1,4 @@
-import { Terminal, LayoutDashboard, Ticket, Users, ScrollText, Zap, LogOut, Activity, BarChart3, Building2 } from 'lucide-react';
+import { Terminal, LayoutDashboard, Ticket, Users, ScrollText, Zap, LogOut, Activity, BarChart3, Building2, Home } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import { useAuth } from '@/contexts/AuthContext';
 import {
@@ -89,8 +89,27 @@ export function AppSidebar() {
           {!collapsed && profile && (
             <p className="text-xs text-muted-foreground truncate px-2">{profile.display_name}</p>
           )}
-          <Button variant="ghost" size="icon" onClick={signOut} className="h-8 w-8 text-destructive">
+          <Button
+            variant="ghost"
+            size={collapsed ? 'icon' : 'sm'}
+            asChild
+            className={collapsed ? 'h-8 w-8 text-primary' : 'h-8 justify-start text-primary hover:text-primary'}
+            title="Portal Principal"
+          >
+            <a href="https://pj-insight-hub.lovable.app" rel="noopener">
+              <Home className="h-4 w-4" />
+              {!collapsed && <span className="ml-2 font-mono text-xs">Portal Principal</span>}
+            </a>
+          </Button>
+          <Button
+            variant="ghost"
+            size={collapsed ? 'icon' : 'sm'}
+            onClick={signOut}
+            className={collapsed ? 'h-8 w-8 text-destructive' : 'h-8 justify-start text-destructive hover:text-destructive'}
+            title="Sair"
+          >
             <LogOut className="h-4 w-4" />
+            {!collapsed && <span className="ml-2 font-mono text-xs">Sair</span>}
           </Button>
         </div>
       </SidebarFooter>
