@@ -1,1 +1,7 @@
 project_id = "npdaxrcikjshzpmjrcqe"
+
+[functions.sso-verify]
+verify_jwt = false
+
+[functions.sso-session]
+verify_jwt = false
