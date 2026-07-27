@@ -16,6 +16,7 @@ import Monitor from "./pages/Monitor";
 import Reports from "./pages/Reports";
 import SsoConsume from "./pages/SsoConsume";
 import Providers from "./pages/Providers";
+import Transits from "./pages/Transits";
 
 import NotFound from "./pages/NotFound";
 
