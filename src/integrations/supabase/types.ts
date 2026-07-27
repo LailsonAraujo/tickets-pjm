@@ -505,6 +505,51 @@ export type Database = {
           },
         ]
       }
+      transits: {
+        Row: {
+          bandwidth_mbps: number
+          created_at: string
+          created_by: string | null
+          expires_at: string | null
+          id: string
+          link_type: string
+          notes: string | null
+          operator: string
+          price_per_mb: number
+          signed_at: string
+          updated_at: string
+          validity_months: number
+        }
+        Insert: {
+          bandwidth_mbps: number
+          created_at?: string
+          created_by?: string | null
+          expires_at?: string | null
+          id?: string
+          link_type?: string
+          notes?: string | null
+          operator: string
+          price_per_mb: number
+          signed_at: string
+          updated_at?: string
+          validity_months?: number
+        }
+        Update: {
+          bandwidth_mbps?: number
+          created_at?: string
+          created_by?: string | null
+          expires_at?: string | null
+          id?: string
+          link_type?: string
+          notes?: string | null
+          operator?: string
+          price_per_mb?: number
+          signed_at?: string
+          updated_at?: string
+          validity_months?: number
+        }
+        Relationships: []
+      }
       user_providers: {
         Row: {
           created_at: string
