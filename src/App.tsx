@@ -57,6 +57,7 @@ function AppRoutes() {
         <Route path="/monitor" element={<Monitor />} />
         <Route path="/reports" element={<Reports />} />
         <Route path="/providers" element={<Providers />} />
+        <Route path="/transits" element={<Transits />} />
         
         <Route path="/users" element={<UsersPage />} />
         <Route path="/logs" element={<Logs />} />
