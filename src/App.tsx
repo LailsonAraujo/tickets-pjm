@@ -16,6 +16,7 @@ import Monitor from "./pages/Monitor";
 import Reports from "./pages/Reports";
 import SsoConsume from "./pages/SsoConsume";
 import Providers from "./pages/Providers";
+import Transits from "./pages/Transits";
 
 import NotFound from "./pages/NotFound";
 
@@ -56,6 +57,7 @@ function AppRoutes() {
         <Route path="/monitor" element={<Monitor />} />
         <Route path="/reports" element={<Reports />} />
         <Route path="/providers" element={<Providers />} />
+        <Route path="/transits" element={<Transits />} />
         
         <Route path="/users" element={<UsersPage />} />
         <Route path="/logs" element={<Logs />} />
